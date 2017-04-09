@@ -1,3 +1,8 @@
+/*
+	Project present like RTree
+	Created by Vladimir Nedved 2017
+	Apache License 2.0
+*/
 #pragma once
 
 #ifndef LOG_H
@@ -50,7 +55,7 @@ void lprintf(const char *text)
 {
 	char buf[1024];
 	struct timeval tp;
-	char buf1[1024];
+//	char buf1[1024];
 #ifdef _WIN
 	struct timezone *tz = NULL;
 	gettimeofday(&tp, tz);
@@ -68,9 +73,17 @@ void lprintf(const char *text)
 #endif _WIN
 	strftime(buf, sizeof(buf), "%Y/%m/%d %H:%M:%S:", &tm0);
 	size_t sizestr = strlen(buf);
+#ifndef _WIN
+	snprintf(buf + sizestr, 1024 - sizestr, "%03u: ", (unsigned)tp.tv_usec / 1000);
+#else
 	sprintf_s(buf + sizestr, 1024 - sizestr, "%03u: ", (unsigned)tp.tv_usec / 1000);
+#endif
 	sizestr = strlen(buf);
+#ifndef _WIN
+	snprintf(buf + sizestr, 1024 - sizestr, " %s\n", text);
+#else
 	sprintf_s(buf + sizestr, 1024 - sizestr, " %s\n", text);
+#endif
 	printf("%s", buf);
 }
 
