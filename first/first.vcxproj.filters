@@ -38,5 +38,6 @@
   </ItemGroup>
   <ItemGroup>
     <Text Include="Text.txt" />
+    <Text Include="LICENSE" />
   </ItemGroup>
 </Project>
