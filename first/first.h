@@ -163,7 +163,11 @@ struct node* separate_nodes(struct node* nd);
 struct node* separate_leafs(struct node* nd, unsigned count_senters_items, unsigned *pos_idx); //_x, unsigned *pos_idx_y, bool separate_by_x);
 bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_leafs, unsigned count_cpus, unsigned count_leafs);
 void first_thread(void *params);
+#ifndef _WIN
+void* first_thread_v2(void *params);
+#else
 void first_thread_v2(void *params);
+#endif
 void print_file_svg(struct node *nds, unsigned count_nodes, unsigned count_shapes, const char *file_name);
 bool find_centers(const struct node *nd, const unsigned count_shapes);
 bool find_branch_centers(struct node *nd);

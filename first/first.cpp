@@ -4,6 +4,7 @@
 #ifndef _WIN
 	#include <sys/time.h>
 	#include <unistd.h>
+	#include <pthread.h>
 #else
 	#include "time.h"
 	#include <conio.h>
@@ -286,7 +287,7 @@ struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count
 {
 	FILE *f1;
 #ifndef _WIN
-	f1 = fopen("c:/projects/tmp/1/7.bin", "rb");
+	f1 = fopen("/media/vovan/OS/projects/tmp/1/7.bin", "rb");
 #else
 	errno_t t = fopen_s(&f1, "c:/projects/tmp/1/7.bin", "rb");
 #endif
@@ -1359,6 +1360,45 @@ bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_
 	// pthread_create for linux, _beginthread for windows
 
 #ifndef _WIN
+	// handler thread
+	pthread_t *ptr1 = (pthread_t*)malloc(sizeof(pthread_t) * count_cpus);
+	//unsigned tun[32];
+	struct first_thr_st *ftst = (struct first_thr_st*)malloc(sizeof(struct first_thr_st) * count_cpus);
+	unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (count_cpus + 1));
+
+	// prepare for separate
+	unsigned offset = (unsigned)ceil(count_leafs / count_cpus);
+	idx[0] = 0;
+	idx[count_cpus] = count_leafs;
+	for (unsigned i = 1; i < count_cpus; ++i) {
+		for (unsigned j = offset * i; j < offset * i + offset - 1; ++j) {
+			if (leafs[j].number != leafs[j + 1].number) {
+				idx[i] = j + 1;
+				break;
+			}
+		}
+	}
+
+	for (unsigned i = 0; i < count_cpus; ++i) {
+		ftst[i].leafs_ = leafs;
+		ftst[i].node_ = &(nd[i]);
+		ftst[i].offsets_leafs_ = &(offsets_leafs[leafs[idx[i]].number]);
+		ftst[i].count_leaf = idx[i + 1] - idx[i];
+		ftst[i].start_pos_leafs = idx[i];
+
+		//tun[i] = i;
+		//ptr1[i] = _beginthread(first_thread_v2, 0, &(ftst[i]));
+		pthread_create(&(ptr1[i]), NULL, first_thread_v2, &(ftst[i]));
+	}
+	for (unsigned i = 0; i < count_cpus; ++i) {
+		//WaitForSingleObject((HANDLE)ptr1[i], INFINITE);
+		pthread_join(ptr1[i], NULL);
+	}
+
+	free(idx);
+	free(ftst);
+	free(ptr1);
+
 #else
 	// handler thread
 	uintptr_t *ptr1 = (uintptr_t*)malloc(sizeof(uintptr_t) * count_cpus);
@@ -1446,7 +1486,11 @@ void first_thread(void *params)
 }
 
 /// first tharead v2
+#ifndef _WIN
+void* first_thread_v2(void *params)
+#else
 void first_thread_v2(void *params)
+#endif
 {
 #ifndef _WIN
 #else
@@ -1486,11 +1530,15 @@ void first_thread_v2(void *params)
 
 #ifndef _WIN
 	snprintf(tch, 32, "Stop %u (t1 = %u)", ftst->start_pos_leafs, t1);
+	lprintf(tch);
+	pthread_exit(0);
+	return NULL;
+
 #else
 	sprintf_s(tch, 32, "Stop %u (t1 = %u)", ftst->start_pos_leafs, t1);
-#endif
 	lprintf(tch);
 	return;
+#endif
 }
 
 /// print small data in svg file
@@ -1565,7 +1613,7 @@ void print_file_svg(struct node *nds, unsigned count_nodes, unsigned count_shape
 
 	fprintf(f2, "</svg>");
 	fclose(f2);
-#endif PRINT_SVG
+#endif //PRINT_SVG
 }
 
 /// find centers (nodes, leafs in branches)

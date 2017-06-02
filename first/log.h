@@ -70,7 +70,7 @@ void lprintf(const char *text)
 	localtime_r(&lt, &tm0);
 #else
 	localtime_s(&tm0, &lt);
-#endif _WIN
+#endif // _WIN
 	strftime(buf, sizeof(buf), "%Y/%m/%d %H:%M:%S:", &tm0);
 	size_t sizestr = strlen(buf);
 #ifndef _WIN

@@ -240,3 +240,12 @@ ModelManifest.xml
 
 # FAKE - F# Make
 .fake/
+/first/search.o
+/first/first.o
+/first/core
+/first/ala_rtree
+/first/.settings/language.settings.xml
+/first/.project
+/first/.cproject
+/.externalToolBuilders/New_Builder.launch
+/.project
