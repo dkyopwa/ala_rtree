@@ -384,11 +384,11 @@ void init_root(const void* p) {
 	m_nodes = (struct node*)malloc(sizeof(struct node));
 	m_nodes->count_child_nodes = 1;
 	struct branch *tbr = (struct branch*)malloc(sizeof(struct branch));
-#ifndef _WIN
+//#ifndef _WIN
 	//*(m_nodes->child_node) = malloc(sizeof(struct branch*) * 1);
-#else
+//#else
 	m_nodes->child_node = (void**)malloc(sizeof(void*) * 1);
-#endif
+//#endif
 	tbr->x_min = 0.0;
 	tbr->x_max = 0.0;
 	tbr->y_min = 0.0;
@@ -425,11 +425,11 @@ void init_root2(struct node *nd, const void* p) {
 	// nd = (struct node*)malloc(sizeof(struct node));
 	nd->count_child_nodes = 1;
 	struct branch *tbr = (struct branch*)malloc(sizeof(struct branch));
-#ifndef _WIN
+//#ifndef _WIN
 	//*(nd->child_node) = malloc(sizeof(struct branch*) * 1);
-#else
+//#else
 	nd->child_node = (void**)malloc(sizeof(void*) * 1);
-#endif
+//#endif
 	tbr->x_min = 0.0;
 	tbr->x_max = 0.0;
 	tbr->y_min = 0.0;
@@ -1724,7 +1724,7 @@ struct node* separate_branches(struct node* nd)
 	positions2[0].idx2 = cbranches - 1;
 	//indexer j;
 	indexer k;
-	indexer ccount;
+	//indexer ccount;
 
 	bool pos_pos = false; // false - used positions1, true = used positions2
 
@@ -1735,7 +1735,7 @@ struct node* separate_branches(struct node* nd)
 			pos_start = positions2[k].idx1;
 			center_start = &(nd->center_child_node[pos_start]);
 			brinscope = positions2[k].idx2 - positions2[k].idx1 + 1;
-			ccount = 0;
+			//ccount = 0;
 
 			// sort shapes by x
 			//qsort(br->center, br->count_shapes, sizeof(struct center_st2), x_cmp);
@@ -1765,7 +1765,7 @@ struct node* separate_branches(struct node* nd)
 			pos_start = positions1[k].idx1;
 			center_start = &(nd->center_child_node[pos_start]);
 			brinscope = positions1[k].idx2 - positions1[k].idx1 + 1;
-			ccount = 0;
+			//ccount = 0;
 			qsort_node_centers_y(center_start, brinscope);
 
 			positions2[k * 2].idx1 = pos_start;
@@ -1790,7 +1790,7 @@ struct node* separate_branches(struct node* nd)
 
 	// prepare new nodes
 	struct node *nd1 = (struct node*)malloc(sizeof(struct node) * size_separate);
-	indexer total_count_br = 0;
+	//indexer total_count_br = 0;
 	for (unsigned i = 0; i < size_separate; ++i) {
 		init_root2(&(nd1[i]), &(((struct branch*)(nd->child_node[0]))->leafs[0]));
 		// assign branches to node
@@ -2068,6 +2068,7 @@ void try_find(struct leaf* lll, unsigned count_of_leafs)
 
 	indexer idx;
 	char ch[64];
+	lprintf("start2");
 	for (unsigned i = 0; i < count; i++) {
 		idx = search_point(m_nodes, xx[i], yy[i], radius);
 		idxs[i] = idx;

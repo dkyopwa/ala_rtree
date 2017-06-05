@@ -121,7 +121,7 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 	indexer tn = 0, tn1 = 0;
 
 	indexer i = 0;
-	bool flag_del_branches = false;
+	//bool flag_del_branches = false;
 
 	coord dist = 0.0;
 	struct t_result tres;
