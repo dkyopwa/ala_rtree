@@ -144,13 +144,17 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 #ifdef MINIMAL_DEBUG
 							temp_counter1++;
 #endif
-							// before calculation check boundary radius
-							coord c1 = br->leafs[k].x - x;
-							coord c2 = br->leafs[k].y - y;
-							////coord t1 = sqrt(c1 * c1 + c2 * c2);
-							coord t1 = c1 * c1 + c2 * c2;
-							if (t1 > radius * radius)
-								continue;
+							// before calculation check boundary radius and length of segment
+							coord t1 = 0.0;
+							if (br->merge_next_leaf[k] && br->length[k] > radius) {
+							} else {
+								coord c1 = br->leafs[k].x - x;
+								coord c2 = br->leafs[k].y - y;
+								////coord t1 = sqrt(c1 * c1 + c2 * c2);
+								t1 = c1 * c1 + c2 * c2;
+								if (t1 > radius * radius)
+									continue;
+							}
 #ifdef MINIMAL_DEBUG
 							temp_counter2++;
 #endif
@@ -171,9 +175,11 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 							} else {
 								// point
 								//dist = sqrt(pow(fabs(br->leafs[k].x - x), 2) + pow(fabs(br->leafs[k].y - y), 2));
-								coord c1 = br->leafs[k].x - x;
+								/* coord c1 = br->leafs[k].x - x;
 								coord c2 = br->leafs[k].y - y;
 								dist = sqrt(c1 * c1 + c2 * c2);
+								*/
+								dist = sqrt(t1);
 							}
 							if (dist < tres.dist) {
 								tres.dist = dist;

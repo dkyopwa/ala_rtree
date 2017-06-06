@@ -86,6 +86,9 @@ struct branch {
 	coord x_max;
 	coord y_max;
 	//struct center_node_st branch_center;
+
+	// length of segments for easier calculating
+	coord *length;
 #ifndef _WIN
 } __attribute__((aligned(16)));
 #else
@@ -178,7 +181,6 @@ indexer* search_rects(struct node *nd, coord x_min, coord y_min, coord x_max, co
 indexer search_circle(struct node *nd, coord radius, ret_callback callback, void *arg);
 indexer* search_circles(struct node *nd, coord radius);
 indexer search_point(struct node *nd, coord x, coord y, coord radius);
-void try_find(struct leaf* lll, unsigned count_of_leafs);
-
+void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 
 #endif //FIRST_H_HEADERS

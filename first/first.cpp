@@ -127,7 +127,7 @@ int main()
 		print_file_svg(m_nodes, 1, count_shapes, "7_0.svg");
 		separate(m_nodes);
 
-		// calculate boundary of branches
+		// calculate boundary of branches and lengths
 		for (indexer i = 0; i < m_nodes->count_child_nodes; ++i) {
 			if (!m_nodes->is_last_node) {
 				lprintf("TO DO with first step separate branches");
@@ -135,11 +135,14 @@ int main()
 			} 
 
 			struct branch *tbr = (struct branch*)(m_nodes->child_node)[i];
+			tbr->length = (coord*)malloc(sizeof(coord) * tbr->count_leafs);
+
 			tbr->x_min = tbr->leafs[0].x;
 			tbr->x_max = tbr->leafs[0].x;
 			tbr->y_min = tbr->leafs[0].y;
 			tbr->y_max = tbr->leafs[0].y;
 			for (indexer j = 1; j < tbr->count_leafs; ++j) {
+				// boundary
 				if (tbr->leafs[j].x < tbr->x_min)
 					tbr->x_min = tbr->leafs[j].x;
 				else if (tbr->leafs[j].x > tbr->x_max) {
@@ -150,6 +153,11 @@ int main()
 				else if (tbr->leafs[j].y > tbr->y_max) {
 					tbr->y_max = tbr->leafs[j].y;
 				}
+
+				// length
+				coord cx = tbr->leafs[j - 1].x - tbr->leafs[j].x;
+				coord cy = tbr->leafs[j - 1].y - tbr->leafs[j].y;
+				tbr->length[j - 1] = sqrt(cx * cx + cy * cy);
 			}
 #ifdef PRINT_SVG
 			//char ch[1024];
@@ -198,7 +206,7 @@ int main()
 
 		// testing
 		lprintf("start");
-		try_find(lll, count_of_leafs);
+		try_find(m_nodes, lll, count_of_leafs);
 		lprintf("end");
 	}
 
@@ -479,6 +487,8 @@ void del_root()
 				free(br->merge_next_leaf);
 			if (br->leafs)
 				free(br->leafs);
+			if (br->length)
+				free(br->length);
 		}
 		free((struct branch*)nd->child_node[0]);
 		free(nd->child_node);
@@ -503,6 +513,7 @@ void del_root()
 					free(br->merge_next_leaf);
 					//free(br->center);
 					free(br->leafs);
+					free(br->length);
 				}
 				free(nd->child_node);
 				free(nd->center_child_node);
@@ -2031,100 +2042,4 @@ struct node* separate_nodes(struct node* nd)
 	////////////////////////////////////////////////////////////////
 
 	return NULL;
-}
-
-// ---------------------------------------- TEST -------------------------------------------
-
-void try_find(struct leaf* lll, unsigned count_of_leafs)
-{
-	char **colors = (char**)malloc(sizeof(char*) * 125);
-	for (unsigned i = 0; i < 125; ++i) {
-		colors[i] = (char*)malloc(sizeof(char) * 32);
-	}
-	short t2 = 0;
-	for (char i = 0; i < 5; ++i) {
-		for (char j = 0; j < 5; ++j) {
-			for (char k = 0; k < 5; ++k) {
-#ifndef _WIN
-				snprintf(colors[t2], 32, "rgb(%u,%u,%u)", i * 51, j * 51, k * 51);
-#else
-				sprintf_s(colors[t2], 32, "rgb(%u,%u,%u)", i * 51, j * 51, k * 51);
-#endif
-				t2++;
-			}
-		}
-	}
-
-	const unsigned count = 100000;
-	const coord radius = 100;
-
-	indexer *idxs = (indexer*)malloc(sizeof(indexer) * count);
-	coord *xx = (coord*)malloc(sizeof(coord) * count);
-	coord *yy = (coord*)malloc(sizeof(coord) * count);
-	for (unsigned i = 0; i < count; ++i) {
-		xx[i] = rand() % (int)m_nodes->x2;
-		yy[i] = rand() % (int)m_nodes->y2;
-	}
-
-	indexer idx;
-	char ch[64];
-	lprintf("start2");
-	for (unsigned i = 0; i < count; i++) {
-		idx = search_point(m_nodes, xx[i], yy[i], radius);
-		idxs[i] = idx;
-		if (idx != (indexer)-1) {
-			//sprintf_s(ch, 64, "Find = %u", idx);
-			//lprintf(ch);
-		} else {
-#ifndef _WIN
-			snprintf(ch, 64, "Error %u (x = %u, y = %u)", i, (unsigned)xx[i], (unsigned)yy[i]);
-#else
-			sprintf_s(ch, 64, "Error %u (x = %u, y = %u)", i, (unsigned)xx[i], (unsigned)yy[i]);
-#endif
-			lprintf(ch);
-		}
-	}
-
-/*	FILE *f2;
-	char name[256];
-	sprintf_s(name, 256, "c:/projects/tmp/1/%s", "test_res.svg");
-	errno_t t = fopen_s(&f2, name, "w");
-	unsigned t1 = 0;
-	short num_color = 1;
-
-	fprintf(f2, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"\?>\n<svg version=\"1.1\" baseProfile=\"full\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:ev=\"http://www.w3.org/2001/xml-events\" height=\"10000px\"  width=\"10000px\">\n"); //  height=\"400px\"  width=\"400px\"
-	for (unsigned k = 0; k < count; ++k) {
-		unsigned i;
-		if (idxs[k] == (indexer)-1)
-			continue;
-		for (i = 0; i < count_of_leafs; ++i) {
-			if (lll[i].number == idxs[k])
-				break;
-		}
-		if (i >= count_of_leafs)
-			continue;
-		fprintf(f2, "\t<polygon points=\"");
-		while (lll[i].number == idxs[k]) {
-			fprintf(f2, "%u,%u ", (unsigned)lll[i].x, (unsigned)lll[i].y);
-			i++;
-		}
-		//fprintf(f2, "%u,%u ", (unsigned)xx[k], (unsigned)yy[k]);
-		fprintf(f2, "\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" fill=\"%s\"/>\n", colors[num_color]); // rgb(0, 0, 0) rgb(150,150,255)
-		fprintf(f2, "\t<circle cx=\"%u\" cy=\"%u\" r=\"3\" stroke-width=\"1\" stroke=\"rgb(50, 50, 50)\" fill=\"%s\"/>\n", (unsigned)xx[k], (unsigned)yy[k], colors[num_color]);
-		num_color++;
-		if (num_color > 124)
-			num_color = 1;
-	}
-
-	fprintf(f2, "</svg>");
-	fclose(f2);
-*/
-	free(xx);
-	free(yy);
-	free(idxs);
-	for (unsigned i = 0; i < 125; ++i) {
-		free(colors[i]);
-	}
-	free(colors);
-
 }

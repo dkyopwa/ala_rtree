@@ -151,6 +151,7 @@
   <ItemGroup>
     <ClCompile Include="first.cpp" />
     <ClCompile Include="search.cpp" />
+    <ClCompile Include="test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="first.h" />
