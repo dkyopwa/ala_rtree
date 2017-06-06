@@ -180,42 +180,40 @@ void find_test2(struct node *nd, const coord *xx, const coord *yy, const unsigne
 
 #ifndef _WIN
 	// handler thread
-	pthread_t *ptr1 = (pthread_t*)malloc(sizeof(pthread_t) * count_cpus);
+	pthread_t *ptr1 = (pthread_t*)malloc(sizeof(pthread_t) * cpus);
 	//unsigned tun[32];
-	struct first_thr_st *ftst = (struct first_thr_st*)malloc(sizeof(struct first_thr_st) * count_cpus);
-	unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (count_cpus + 1));
+	struct test_data *data = (struct test_data*)malloc(sizeof(struct test_data) * cpus);
+	//unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (count_cpus + 1));
 
 	// prepare for separate
-	unsigned offset = (unsigned)ceil(count_leafs / count_cpus);
-	idx[0] = 0;
-	idx[count_cpus] = count_leafs;
-	for (unsigned i = 1; i < count_cpus; ++i) {
-		for (unsigned j = offset * i; j < offset * i + offset - 1; ++j) {
-			if (leafs[j].number != leafs[j + 1].number) {
-				idx[i] = j + 1;
-				break;
-			}
-		}
-	}
+	unsigned offset = (unsigned)ceil(count / cpus);
+	//idx[0] = 0;
+	//idx[count_cpus] = count_leafs;
 
-	for (unsigned i = 0; i < count_cpus; ++i) {
-		ftst[i].leafs_ = leafs;
-		ftst[i].node_ = &(nd[i]);
-		ftst[i].offsets_leafs_ = &(offsets_leafs[leafs[idx[i]].number]);
-		ftst[i].count_leaf = idx[i + 1] - idx[i];
-		ftst[i].start_pos_leafs = idx[i];
+	for (unsigned i = 0; i < cpus; ++i) {
+		data[i].count = offset;
+		if (i == cpus - 1) {
+			data[i].count = count % offset;
+			if (!data[i].count)
+				data[i].count = offset;
+		}
+
+		data[i].idxs = idxs + offset * i;
+		data[i].nd = nd;
+		data[i].radius = radius;
+		data[i].xx = (coord*)xx + offset * i;
+		data[i].yy = (coord*)yy + offset * i;
 
 		//tun[i] = i;
-		//ptr1[i] = _beginthread(first_thread_v2, 0, &(ftst[i]));
-		pthread_create(&(ptr1[i]), NULL, first_thread_v2, &(ftst[i]));
+		pthread_create(&(ptr1[i]), NULL, find_thread, &(data[i]));
 	}
-	for (unsigned i = 0; i < count_cpus; ++i) {
+	for (unsigned i = 0; i < cpus; ++i) {
 		//WaitForSingleObject((HANDLE)ptr1[i], INFINITE);
 		pthread_join(ptr1[i], NULL);
 	}
 
-	free(idx);
-	free(ftst);
+	//free(idx);
+	free(data);
 	free(ptr1);
 
 #else

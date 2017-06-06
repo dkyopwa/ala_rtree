@@ -25,15 +25,18 @@ endif
 
 CXXFLAGS="$(CFLAGS)"
 
-all: first.o search.o
+all: first.o search.o test.o
 	@echo "=========== $(BUILD_TYPE) =============="
-	$(CC) first.o search.o -o ala_rtree $(CLDFLAGS)
+	$(CC) first.o search.o test.o -o ala_rtree $(CLDFLAGS)
 
 first.o: first.cpp
 	$(CC) $(GDBFLAG) $(CFLAGS) first.cpp
 
 search.o: search.cpp
 	$(CC) $(GDBFLAG) $(CFLAGS) search.cpp
+	
+test.o: test.cpp
+	$(CC) $(GDBFLAG) $(CFLAGS) test.cpp
 
 clean:
 	rm -rf *.o ala_rtree
