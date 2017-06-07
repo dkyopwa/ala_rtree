@@ -5,6 +5,7 @@
 #include "first.h"
 
 //#define MINIMAL_DEBUG
+//#define FIND_V1
 
 struct t_result {
 	coord dist;
@@ -137,17 +138,29 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 				for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
 					struct branch *br = (struct branch*)(nd->child_node)[j];
 					if ((br->x_min <= x || br->x_min <= x + radius) && (br->x_max >= x || br->x_max >= x - radius) && (br->y_min <= y || br->y_min <= y + radius) && (br->y_max >= y || br->y_max >= y - radius)) {
+#ifndef FIND_V1
+						for (indexer i1 = 0; i1 < br->count_shapes; ++i1) {
+							if ((br->xsh_min[i1] <= x || br->xsh_min[i1] <= x + radius) && (br->xsh_max[i1] >= x || br->xsh_max[i1] >= x - radius) && (br->ysh_min[i1] <= y || br->ysh_min[i1] <= y + radius) && (br->ysh_max[i1] >= y || br->ysh_max[i1] >= y - radius)) {
+								indexer to_end;
+								if (i1 == br->count_shapes - 1)
+									to_end = br->count_leafs;
+								else
+									to_end = br->offset[i1 + 1];
+								for (indexer k = br->offset[i1]; k < to_end; ++k) {
+#else
 						indexer to_end = br->count_leafs - 1;
 						if (!br->merge_next_leaf[br->count_leafs - 2])
 							to_end = br->count_leafs;
 						for (indexer k = 0; k < to_end; ++k) {
+#endif
 #ifdef MINIMAL_DEBUG
 							temp_counter1++;
 #endif
 							// before calculation check boundary radius and length of segment
 							coord t1 = 0.0;
 							if (br->merge_next_leaf[k] && br->length[k] > radius) {
-							} else {
+							}
+							else {
 								coord c1 = br->leafs[k].x - x;
 								coord c2 = br->leafs[k].y - y;
 								////coord t1 = sqrt(c1 * c1 + c2 * c2);
@@ -172,7 +185,8 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 								line_p1.x = br->leafs[k + 1].x;
 								line_p1.y = br->leafs[k + 1].y;
 								dist = distance(&p, &line_p0, &line_p1);
-							} else {
+							}
+							else {
 								// point
 								//dist = sqrt(pow(fabs(br->leafs[k].x - x), 2) + pow(fabs(br->leafs[k].y - y), 2));
 								/* coord c1 = br->leafs[k].x - x;
@@ -191,7 +205,13 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 								tn = br->leafs[k].number;
 								tn1 = br->leafs[k + 1].number;
 							}
+							}
+#ifndef FIND_V1
+							}
 						}
+#else
+					//}
+#endif
 					}
 				}
 				// return from stack

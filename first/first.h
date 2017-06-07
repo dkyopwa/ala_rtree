@@ -89,6 +89,13 @@ struct branch {
 
 	// length of segments for easier calculating
 	coord *length;
+
+	// boundary of shapes
+	coord *xsh_min;
+	coord *ysh_min;
+	coord *xsh_max;
+	coord *ysh_max;
+	indexer *offset;
 #ifndef _WIN
 } __attribute__((aligned(16)));
 #else

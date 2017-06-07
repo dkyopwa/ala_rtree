@@ -159,6 +159,47 @@ int main()
 				coord cy = tbr->leafs[j - 1].y - tbr->leafs[j].y;
 				tbr->length[j - 1] = sqrt(cx * cx + cy * cy);
 			}
+
+			// boundary
+			tbr->offset = (indexer*)malloc(sizeof(indexer) * tbr->count_shapes);
+			tbr->xsh_min = (coord*)malloc(sizeof(coord) * tbr->count_shapes);
+			tbr->xsh_max = (coord*)malloc(sizeof(coord) * tbr->count_shapes);
+			tbr->ysh_min = (coord*)malloc(sizeof(coord) * tbr->count_shapes);
+			tbr->ysh_max = (coord*)malloc(sizeof(coord) * tbr->count_shapes);
+			indexer k = 0;
+			indexer tj = tbr->leafs[0].number;
+			tbr->offset[k] = 0;
+			coord xsh_min, xsh_max, ysh_min, ysh_max;
+			xsh_min = xsh_max = tbr->leafs[0].x;
+			ysh_min = ysh_max = tbr->leafs[0].y;
+			for (indexer j = 1; j < tbr->count_leafs; ++j) {
+				if (tj != tbr->leafs[j].number) {
+					tbr->xsh_min[k] = xsh_min;
+					tbr->xsh_max[k] = xsh_max;
+					tbr->ysh_min[k] = ysh_min;
+					tbr->ysh_max[k] = ysh_max;
+					++k;
+					tbr->offset[k] = j;
+					xsh_min = xsh_max = tbr->leafs[j].x;
+					ysh_min = ysh_max = tbr->leafs[j].y;
+					tj = tbr->leafs[j].number;
+					continue;
+				}
+				if (xsh_min > tbr->leafs[j].x)
+					xsh_min = tbr->leafs[j].x;
+				else if (xsh_max < tbr->leafs[j].x)
+					xsh_max = tbr->leafs[j].x;
+				if (ysh_min > tbr->leafs[j].y)
+					ysh_min = tbr->leafs[j].y;
+				else if (ysh_max < tbr->leafs[j].y)
+					ysh_max = tbr->leafs[j].y;
+			}
+			tbr->xsh_min[k] = xsh_min;
+			tbr->xsh_max[k] = xsh_max;
+			tbr->ysh_min[k] = ysh_min;
+			tbr->ysh_max[k] = ysh_max;
+			++k;
+			printf("SHAPES %u = %u (%u)\n", i, tbr->count_shapes, k);
 #ifdef PRINT_SVG
 			//char ch[1024];
 			//sprintf_s(ch, 1024, "%u: min X = %f, min Y = %f, max X = %f, max Y = %f", i, tbr->x_max, tbr->y_min, tbr->x_max, tbr->y_max);
@@ -514,6 +555,11 @@ void del_root()
 					//free(br->center);
 					free(br->leafs);
 					free(br->length);
+					// boundary
+					free(br->xsh_max);
+					free(br->xsh_min);
+					free(br->ysh_max);
+					free(br->ysh_min);
 				}
 				free(nd->child_node);
 				free(nd->center_child_node);
