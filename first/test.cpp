@@ -53,7 +53,7 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	}
 	}
 	*/
-	const unsigned count = 1000000;
+	const unsigned count = 10000;
 	const coord radius = 100;
 
 	indexer *idxs1 = (indexer*)malloc(sizeof(indexer) * count);
@@ -61,8 +61,8 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	coord *xx = (coord*)malloc(sizeof(coord) * count);
 	coord *yy = (coord*)malloc(sizeof(coord) * count);
 	for (unsigned i = 0; i < count; ++i) {
-		xx[i] = rand() % (int)nd->x2;
-		yy[i] = rand() % (int)nd->y2;
+		xx[i] = (rand() % ((int)((nd->x2 - nd->x1) * 10))) / 10.0 + nd->x1; // - (nd->x2 - nd->x1) / 2.0;
+		yy[i] = (rand() % ((int)((nd->y2 - nd->y1) * 10))) / 10.0 + nd->y1; //- (nd->y2 - nd->y1) / 2.0;
 	}
 
 	lprintf("start 1");
@@ -224,7 +224,7 @@ void find_test2(struct node *nd, const coord *xx, const coord *yy, const unsigne
 	//unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (cpus + 1));
 
 	// prepare for separate
-	unsigned offset = (unsigned)ceil(count / cpus);
+	unsigned offset = (unsigned)ceil((double)count / cpus);
 	//idx[0] = 0;
 	//idx[count_cpus] = count_leafs;
 	

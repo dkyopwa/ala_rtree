@@ -40,6 +40,8 @@
 // globale variables
 struct node* m_nodes = NULL;
 //struct center_node_st* m_branch_center = NULL;
+unsigned m_max_added_leafs_in_iter = 100000;
+
 
 /// main function
 int main()
@@ -67,6 +69,9 @@ int main()
 #endif
 	lprintf(tch);
 
+	// calculate maximal size for adding leafs in iteration for malloc and realloc
+	m_max_added_leafs_in_iter = (unsigned)(count_of_leafs / cpus * 0.3);
+
 	struct node *nds = (struct node*)malloc(sizeof(struct node) * cpus);
 	create_first_thread(nds, lll, offsets_leafs, cpus, count_of_leafs);
 	lprintf("Print file");
@@ -79,7 +84,7 @@ int main()
 	for (unsigned i = 0; i < cpus; ++i) {
 		total_mem += ((struct branch*)(nds[i].child_node[0]))->count_leafs;
 	}
-	total_mem = (unsigned)(ceil(total_mem / 16.0) * 16);
+	total_mem = (unsigned)(ceil((double)total_mem / 16.0) * 16);
 	//((struct branch*)(nds[0].child_node[0]))->leafs = (struct leaf*)realloc(((struct branch*)(nds[0].child_node[0]))->leafs, sizeof(struct leaf) * total_mem);
 	init_root(&(lll[0]));
 	struct branch *br1 = (struct branch*)(m_nodes->child_node[0]);
@@ -105,7 +110,9 @@ int main()
 		free(((struct branch*)(nds[i].child_node[0]))->leafs);
 		free(((struct branch*)(nds[i].child_node[0])));
 		free(nds[i].center_child_node);
+		free(nds[i].child_node);
 	}
+	free(nds);
 
 	/*FILE *f3 = NULL;
 	fopen_s(&f3, "c:/projects/tmp/1/tmp.txt", "w");
@@ -199,7 +206,7 @@ int main()
 			tbr->ysh_min[k] = ysh_min;
 			tbr->ysh_max[k] = ysh_max;
 			++k;
-			printf("SHAPES %u = %u (%u)\n", i, tbr->count_shapes, k);
+			//printf("SHAPES %u = %u (%u)\n", i, tbr->count_shapes, k);
 #ifdef PRINT_SVG
 			//char ch[1024];
 			//sprintf_s(ch, 1024, "%u: min X = %f, min Y = %f, max X = %f, max Y = %f", i, tbr->x_max, tbr->y_min, tbr->x_max, tbr->y_max);
@@ -251,7 +258,6 @@ int main()
 		lprintf("end");
 	}
 
-	free(nds);
 	if (lll)
 		free(lll);
 	free(offsets_leafs);
@@ -560,6 +566,7 @@ void del_root()
 					free(br->xsh_min);
 					free(br->ysh_max);
 					free(br->ysh_min);
+					free(br->offset);
 				}
 				free(nd->child_node);
 				free(nd->center_child_node);
@@ -624,11 +631,15 @@ void del_root()
 					free(nd->child_node);
 				}
 			}
-		}
-		return;*/
+		}*/
+		return;
 
-		do /*while (!nd->is_last_node)*/ {
-			//stack_idx[stack_pos] = i;
+		stack_pos = 0;
+		i = 0;
+		struct node *old_nd = NULL;
+		//do /*while (!nd->is_last_node)*/ {
+		while (i < nd->count_child_nodes) {
+			stack_idx[stack_pos] = i;
 			stack_node[stack_pos] = nd;
 			stack_pos++;
 			if (!nd->is_last_node)
@@ -636,9 +647,35 @@ void del_root()
 			else {
 				//stack_node[stack_pos] = (struct node*)nd->child_node[0];
 				//stack_pos++;
-				break;
+				//break;
+				while (stack_pos > 0) {
+					stack_pos--;
+					old_nd = nd;
+					nd = stack_node[stack_pos];
+					if (!old_nd->is_last_node)
+						free(old_nd);
+					i = stack_idx[stack_pos] + 1;
+
+					if (i < nd->count_child_nodes) {
+						stack_idx[stack_pos] = i;
+						stack_node[stack_pos] = nd;
+						stack_pos++;
+						nd = (struct node*)nd->child_node[i];
+						i = 0;
+						break;
+					}
+					else {
+						//free(nd->child_node[0]);
+						//free(nd->child_node);
+						//free(nd->center_child_node);
+						//free(nd);
+					}
+				}
 			}
-		} while (true);
+		}; // while (true);
+
+		return;
+
 		for (int i = stack_pos - 1; i >= 0; --i) {
 			//free(stack_node[i]->center_child_node);
 			free(stack_node[i]);
@@ -734,14 +771,14 @@ bool add_leafs2(struct branch *br, struct leaf *lf, unsigned count_of_leafs)
 	// unsigned tmp = 0; // br->count_leafs;
 	// struct branch *br = m_nodes[i].child_node;
 	if (br->leafs == NULL) {
-		br->leafs = (struct leaf*)malloc(sizeof(struct leaf) * MAX_ADDED_LEAFS_IN_ITER);
-		br->merge_next_leaf = (bool*)malloc(sizeof(bool) * MAX_ADDED_LEAFS_IN_ITER);
+		br->leafs = (struct leaf*)malloc(sizeof(struct leaf) * m_max_added_leafs_in_iter);
+		br->merge_next_leaf = (bool*)malloc(sizeof(bool) * m_max_added_leafs_in_iter);
 		br->alloc_mem_times = 1;
 	} else {
-		if (br->count_leafs + count_of_leafs > br->alloc_mem_times * MAX_ADDED_LEAFS_IN_ITER) {
+		if (br->count_leafs + count_of_leafs > br->alloc_mem_times * m_max_added_leafs_in_iter) {
 			++(br->alloc_mem_times);
-			br->leafs = (struct leaf*)realloc(br->leafs, sizeof(struct leaf) * br->alloc_mem_times * MAX_ADDED_LEAFS_IN_ITER);
-			br->merge_next_leaf = (bool*)realloc(br->merge_next_leaf, sizeof(bool) * br->alloc_mem_times * MAX_ADDED_LEAFS_IN_ITER);
+			br->leafs = (struct leaf*)realloc(br->leafs, sizeof(struct leaf) * br->alloc_mem_times * m_max_added_leafs_in_iter);
+			br->merge_next_leaf = (bool*)realloc(br->merge_next_leaf, sizeof(bool) * br->alloc_mem_times * m_max_added_leafs_in_iter);
 		}
 	}
 	//br->count_merged_leafs = (unsigned*)malloc(sizeof(unsigned) * 1);
@@ -1424,7 +1461,7 @@ bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_
 	unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (count_cpus + 1));
 
 	// prepare for separate
-	unsigned offset = (unsigned)ceil(count_leafs / count_cpus);
+	unsigned offset = (unsigned)ceil((double)count_leafs / count_cpus);
 	idx[0] = 0;
 	idx[count_cpus] = count_leafs;
 	for (unsigned i = 1; i < count_cpus; ++i) {
@@ -1464,7 +1501,7 @@ bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_
 	unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (count_cpus + 1));
 
 	// prepare for separate
-	unsigned offset = (unsigned)ceil(count_leafs / count_cpus);
+	unsigned offset = (unsigned)ceil((double)count_leafs / count_cpus);
 	idx[0] = 0;
 	idx[count_cpus] = count_leafs;
 	for (unsigned i = 1; i < count_cpus; ++i) {
@@ -1889,6 +1926,8 @@ struct node* separate_branches(struct node* nd)
 	//free(nd->child_node);
 	//nd->child_node = (void**)malloc(sizeof(void*) * size_separate);
 
+	// free old branch, i.e. exchanged to tbr1
+	free(nd->child_node[0]);
 	// free branches and nodes
 	free(nd->child_node);
 	nd->child_node = (void**)malloc(sizeof(void*) * size_separate);

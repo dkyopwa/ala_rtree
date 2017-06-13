@@ -16,7 +16,7 @@ typedef bool (*ret_callback)(indexer, void*);
 const double PI = 3.1415926535897932384626433832795;
 const unsigned MAX_ITEMS_IN_NODE = 1000;
 const unsigned MAX_NODES = 4;
-const unsigned MAX_ADDED_LEAFS_IN_ITER = 1000000; // for malloc and realloc memory
+//const unsigned MAX_ADDED_LEAFS_IN_ITER = 1000000; // for malloc and realloc memory
 
 struct leaf {
 	coord x;
