@@ -151,8 +151,8 @@ inline float very_fast_sqrt(float f)
 	return f;
 }
 
-/// generate data for test
-struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes);
+/// creating RTree
+struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *offsets_leafs, unsigned count_shapes);
 /// print in stdout text with time with milliseconds
 void lprintf(const char *text);
 /// initialization root

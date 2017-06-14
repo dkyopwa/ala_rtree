@@ -31,7 +31,140 @@ void* find_thread(void *params);
 #else
 void find_thread(void *params);
 #endif
+/// generate data for test
+struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes);
+
 // ---------------------------------------- TEST -------------------------------------------
+
+int main()
+{
+	lprintf("Hello");
+
+	unsigned count_of_leafs = 0; // old: must to devide 3 without
+	unsigned *offsets_leafs = NULL;
+	unsigned count_shapes = 0;
+	struct leaf* lll = generate(&count_of_leafs, &offsets_leafs, &count_shapes);
+	//lprintf("Done"); _getch();  return 0;
+
+	struct node* nd = create_rtree(lll, count_of_leafs, offsets_leafs, count_shapes);
+
+	if (nd) {
+		// testing
+		lprintf("start");
+		try_find(nd, lll, count_of_leafs);
+		lprintf("end");
+	}
+
+	if (lll)
+		free(lll);
+	free(offsets_leafs);
+	del_root();
+
+	lprintf("Done");
+
+#ifdef _WIN
+	_getch();
+#endif
+
+	return 0;
+}
+
+/// generate test data
+struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes)
+{
+	FILE *f1;
+#ifndef _WIN
+	f1 = fopen("/media/vovan/OS/projects/tmp/1/7.bin", "rb");
+#else
+	errno_t t = fopen_s(&f1, "c:/projects/tmp/1/7.bin", "rb");
+#endif
+
+	unsigned count1 = 0;
+	unsigned count_leafs = 0;
+	unsigned cnt = 0;
+	size_t st = 0;
+	unsigned ii = 0;
+	double d[2];
+
+	st = fread(&count1, sizeof(unsigned), 1, f1);
+	st = fread(&count_leafs, sizeof(unsigned), 1, f1);
+	printf("%u, leafs = %u\n", count1, count_leafs);
+	*count = count_leafs;
+	*offsets_leafs = (unsigned*)malloc(sizeof(unsigned) * count1);
+	*count_shapes = count1;
+
+	// prepare for ramdom number
+	unsigned *numbers = (unsigned*)malloc(sizeof(unsigned) * count1);
+	unsigned t2 = 0;
+	unsigned total_number = 0;
+	for (unsigned i = 0; i < count1; ++i) {
+		t2 = (rand() * rand()) % count1;
+		for (unsigned j = 0; j < total_number; ++j) {
+			if (numbers[j] == t2) {
+				t2++;
+				if (t2 >= count1)
+					t2 = 0;
+				j = 0;
+				continue;
+			}
+		}
+		numbers[i] = t2;
+	}
+
+	struct leaf* res = NULL;
+	res = (struct leaf*)malloc(sizeof(struct leaf) * count_leafs);
+	if (!res)
+		return NULL;
+
+	// struct data *dts = (struct data*)malloc(sizeof(struct data) * count1);
+	unsigned t1 = 0;
+	for (unsigned i = 0; i < count1; ++i) {
+		st = fread(&cnt, sizeof(unsigned), 1, f1);
+		(*offsets_leafs)[i] = cnt;
+		for (unsigned j = 0; j < cnt; ++j) {
+			res[ii].number = i;
+			st = fread(d, sizeof(double), 2, f1);
+			res[ii].x = (coord)d[0];
+			res[ii].y = (coord)d[1];
+			++ii;
+		}
+		t1 += cnt;
+		//dts[i].pts = (struct point*)malloc(sizeof(struct point) * cnt);
+		//st = fread(dts[i].pts, sizeof(double), cnt * 2, f1);
+	}
+	printf("offsets sum = %u\n", t1);
+
+	fclose(f1);
+	free(numbers);
+
+	return res;
+	// old variant
+	//	struct leaf* res = NULL;
+	/*	res = (struct leaf*)malloc(sizeof(struct leaf) * count);
+	if (!res)
+	return NULL;
+
+	srand((unsigned int)time(NULL));
+	for (unsigned i = 0; i < count; i += 3) {
+	res[i].x = rand() % 9999 / 100.0;
+	res[i].y = rand() % 9999 / 100.0;
+	res[i].number = (unsigned)ceil(i / 3.0);
+	coord alpha = ((coord)(rand() % 48) + 1.0) / 100.0 * PI;
+	res[i + 1].x = res[i].x + (coord)((rand() % 5) / 100.0) / sin(alpha);
+	res[i + 1].y = res[i].y + (coord)((rand() % 5) / 100.0) / cos(alpha);
+	res[i + 1].number = (unsigned)ceil(i / 3.0);
+	alpha = ((coord)(rand() % 48) + 1.0) / 100.0 * PI;
+	res[i + 2].x = res[i].x + (coord)((rand() % 5) / 100.0) / sin(alpha);
+	res[i + 2].y = res[i].y + (coord)((rand() % 5) / 100.0) / cos(alpha);
+	res[i + 2].number = (unsigned)ceil(i / 3.0);
+
+	char tch[1024] = {0};
+	/////////		sprintf(tch, "%u: %f:%f, %f:%f, %f:%f", (unsigned)ceil(i / 3.0), res[i].x, res[i].y, res[i + 1].x, res[i + 1].y, res[i + 2].x, res[i + 2].y);
+	lprintf(tch);
+	}
+	return res;
+	*/
+}
 
 void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
@@ -53,7 +186,7 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	}
 	}
 	*/
-	const unsigned count = 10000;
+	const unsigned count = 500000;
 	const coord radius = 100;
 
 	indexer *idxs1 = (indexer*)malloc(sizeof(indexer) * count);

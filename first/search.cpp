@@ -6,6 +6,8 @@
 
 //#define MINIMAL_DEBUG
 //#define FIND_V1
+//#define FIND_V2
+// FIND_V2 on the test_data not found hi performance
 
 struct t_result {
 	coord dist;
@@ -133,26 +135,38 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 	tres.idx = (indexer)-1;
 
 	while (i < nd->count_child_nodes) {
+#ifdef FIND_V2
 		if ((nd->x1 <= x || nd->x1 <= x + radius) && (nd->x2 >= x || nd->x2 >= x - radius) && (nd->y1 <= y || nd->y1 <= y + radius) && (nd->y2 >= y || nd->y2 >= y - radius)) {
+#else
+		if (nd->x1 <= x + radius && nd->x2 >= x - radius && nd->y1 <= y + radius && nd->y2 >= y - radius) {
+#endif // FIND_V2
 			if (nd->is_last_node) {
 				for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
 					struct branch *br = (struct branch*)(nd->child_node)[j];
+#ifdef FIND_V2
 					if ((br->x_min <= x || br->x_min <= x + radius) && (br->x_max >= x || br->x_max >= x - radius) && (br->y_min <= y || br->y_min <= y + radius) && (br->y_max >= y || br->y_max >= y - radius)) {
+#else
+					if (br->x_min <= x + radius && br->x_max >= x - radius && br->y_min <= y + radius && br->y_max >= y - radius) {
+#endif // FIND_V2
 #ifndef FIND_V1
 						for (indexer i1 = 0; i1 < br->count_shapes; ++i1) {
+#ifdef FIND_V2
 							if ((br->xsh_min[i1] <= x || br->xsh_min[i1] <= x + radius) && (br->xsh_max[i1] >= x || br->xsh_max[i1] >= x - radius) && (br->ysh_min[i1] <= y || br->ysh_min[i1] <= y + radius) && (br->ysh_max[i1] >= y || br->ysh_max[i1] >= y - radius)) {
+#else // FIND_V2
+							if (br->xsh_min[i1] <= x + radius && br->xsh_max[i1] >= x - radius && br->ysh_min[i1] <= y + radius && br->ysh_max[i1] >= y - radius) {
+#endif // FIND_V2
 								indexer to_end;
 								if (i1 == br->count_shapes - 1)
 									to_end = br->count_leafs;
 								else
 									to_end = br->offset[i1 + 1];
 								for (indexer k = br->offset[i1]; k < to_end; ++k) {
-#else
+#else // FIND_V1
 						indexer to_end = br->count_leafs - 1;
 						if (!br->merge_next_leaf[br->count_leafs - 2])
 							to_end = br->count_leafs;
 						for (indexer k = 0; k < to_end; ++k) {
-#endif
+#endif // FIND_V1
 #ifdef MINIMAL_DEBUG
 							temp_counter1++;
 #endif
