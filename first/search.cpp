@@ -20,13 +20,14 @@ struct point{
 };
 
 // ------------------------------- SERCHIG --------------------------------------
-bool search_callback(indexer idx, void *arg)
+/* bool search_callback(indexer idx, void *arg)
 {
 	return true;
 }
+*/
 
 /// search rect in selected rect
-indexer search_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, ret_callback callback, void *arg)
+indexer search_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max/*, ret_callback callback, void *arg*/)
 {
 	const size_t mem_size = 128;
 	unsigned mem_offset = 1;
@@ -290,4 +291,138 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 	lprintf(ch1);
 #endif
 	return tres.idx; //(indexer)-1;
+}
+
+/// search items in rectangle (allocated memory have to free after using)
+indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, indexer *count_items)
+{
+	size_t mem_size = 256;
+	size_t count_mem = 1;
+	indexer* idxs = (indexer*)malloc(sizeof(indexer) * mem_size * count_mem);
+	indexer idx = 0;
+
+#ifdef MINIMAL_DEBUG
+	unsigned temp_counter1 = 0, temp_counter2 = 0;
+#endif
+	struct node *stack_node[64];
+	int stack_pos = 0;
+	indexer stack_idx[64];
+
+	coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0;
+	indexer tn = 0, tn1 = 0;
+
+	indexer i = 0;
+
+	coord dist = 0.0;
+	struct t_result tres;
+	coord q1 = nd->x2 - nd->x1;
+	coord q2 = nd->y2 - nd->y1;
+	tres.dist = sqrt(q1 * q1 + q2 * q2);
+	tres.idx = (indexer)-1;
+
+	while (i < nd->count_child_nodes) {
+		// node in bounrary or bounrary in node
+		if (nd->x1 <= x_max && nd->x2 >= x_min && nd->y1 <= y_max && nd->y2 >= y_min) {
+			if (nd->is_last_node) {
+				for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
+					struct branch *br = (struct branch*)(nd->child_node)[j];
+					// checking like node
+					if (br->x_min <= x_max && br->x_max >= x_min && br->y_min <= y_max && br->y_max >= y_min) {
+						for (indexer i1 = 0; i1 < br->count_shapes; ++i1) {
+							// checking like node
+							if (br->xsh_min[i1] <= x_max && br->xsh_max[i1] >= x_min && br->ysh_min[i1] <= y_max && br->ysh_max[i1] >= y_min) {
+								// check memory and store index
+								if (idx > mem_size * count_mem) {
+									count_mem++;
+									idxs = (indexer*)realloc(idxs, sizeof(indexer) * mem_size * count_mem);
+								}
+								// store index of current sergment from shape
+								idxs[idx] = br->leafs[br->offset[i1]].number;
+								idx++;
+
+								indexer to_end;
+								if (i1 == br->count_shapes - 1)
+									to_end = br->count_leafs;
+								else
+									to_end = br->offset[i1 + 1];
+#ifdef MINIMAL_DEBUG
+								temp_counter1++;
+#endif
+
+#ifndef FIND_V1
+							}
+						}
+#else
+								//}
+#endif
+					}
+				}
+						// return from stack
+						while (stack_pos > 0) {
+							stack_pos--;
+							nd = stack_node[stack_pos];
+							i = stack_idx[stack_pos] + 1;
+
+							if (i < nd->count_child_nodes) {
+								stack_idx[stack_pos] = i;
+								stack_node[stack_pos] = nd;
+								stack_pos++;
+								nd = (struct node*)nd->child_node[i];
+								i = 0;
+								break;
+							}
+						}
+			}
+					else {
+						stack_idx[stack_pos] = i;
+						stack_node[stack_pos] = nd;
+						stack_pos++;
+						i = 0;
+						nd = (struct node*)nd->child_node[i];
+					}
+					/*} else if (i < nd->count_child_nodes) {
+					i++;*/
+		}
+			else if (stack_pos > 0) {
+				// return from stack
+				while (stack_pos > 0) {
+					stack_pos--;
+					nd = stack_node[stack_pos];
+					i = stack_idx[stack_pos] + 1;
+
+					if (i < nd->count_child_nodes) {
+						stack_idx[stack_pos] = i;
+						stack_node[stack_pos] = nd;
+						stack_pos++;
+						nd = (struct node*)nd->child_node[i];
+						i = 0;
+						break;
+					}
+				}
+			}
+			else {
+				char ch1[128];
+#ifndef _WIN
+				snprintf(ch1, 128, "node: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f, rect: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f", nd->x1, nd->y1, nd->x2, nd->x2, x_min, y_min, x_max, y_max);
+#else
+				sprintf_s(ch1, 128, "node: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f, rect: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f", nd->x1, nd->y1, nd->x2, nd->x2, x_min, y_min, x_max, y_max);
+#endif
+				lprintf(ch1);
+				return NULL; //(indexer)-1;
+			}
+			//continue;
+	};
+
+	//free(stack_node);
+	//free(stack_idx);
+#ifdef MINIMAL_DEBUG
+	char ch1[128];
+	//sprintf_s(ch1, 128, "x=%.2f, y=%.2f, point: x=%.2f, y=%.2f, x=%.2f, y=%.2f dist=%.2f, n1=%u, n2=%u", x, y, tx, ty, tx1, ty1, tres.dist, tn, tn1);
+	sprintf_s(ch1, 128, "c1 = %u, c2 = %u, utilization = %0.2f", temp_counter1, temp_counter2, temp_counter2 * 100.0 / temp_counter1);
+	lprintf(ch1);
+#endif
+	*count_items = idx;
+	idxs = (indexer*)realloc(idxs, sizeof(indexer) * idx);
+
+	return idxs; //(indexer)-1;
 }
