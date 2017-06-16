@@ -35,6 +35,7 @@ void find_thread(void *params);
 struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes);
 void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
+void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 
 // ---------------------------------------- TEST -------------------------------------------
 
@@ -55,6 +56,7 @@ int main()
 		lprintf("start");
 		try_find(nd, lll, count_of_leafs);
 		try_find2(nd, lll, count_of_leafs);
+		try_find3(nd, lll, count_of_leafs);
 		lprintf("end");
 	}
 
@@ -448,6 +450,53 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 		fprintf(f2, "</svg>");
 		fclose(f2);
 		*/
+	}
+
+	if (idxs)
+		free(idxs);
+}
+
+void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
+{
+	indexer *idxs = NULL;
+	indexer count = 0;
+	lprintf("start4");
+	idxs = search_in_circles(nd, 1000, 1000, 500.0, &count);
+	lprintf("end4");
+	if (idxs) {
+		printf("count = %u\n", count);
+
+		FILE *f2;
+		char name[256];
+		sprintf_s(name, 256, "c:/projects/tmp/1/%s", "test3_res.svg");
+		errno_t t = fopen_s(&f2, name, "w");
+		//unsigned t1 = 0;
+		//short num_color = 1;
+
+		fprintf(f2, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"\?>\n<svg version=\"1.1\" baseProfile=\"full\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:ev=\"http://www.w3.org/2001/xml-events\" height=\"10000px\"  width=\"10000px\">\n"); //  height=\"400px\"  width=\"400px\"
+		fprintf(f2, "\t<circle cx=\"%u\" cy=\"%u\" r=\"500\" stroke-width=\"1\" stroke=\"rgb(50, 255, 100)\" fill=\"none\"/>\n", 1000, 1000);
+		for (unsigned k = 0; k < count; ++k) {
+		unsigned i;
+		if (idxs[k] == (indexer)-1)
+		continue;
+		for (i = 0; i < count_of_leafs; ++i) {
+		if (lll[i].number == idxs[k])
+		break;
+		}
+		if (i >= count_of_leafs)
+		continue;
+		fprintf(f2, "\t<polygon points=\"");
+		while (lll[i].number == idxs[k]) {
+		fprintf(f2, "%u,%u ", (unsigned)lll[i].x, (unsigned)lll[i].y);
+		i++;
+		}
+		//fprintf(f2, "%u,%u ", (unsigned)xx[k], (unsigned)yy[k]);
+		fprintf(f2, "\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" fill=\"%s\"/>\n", "rgb(150, 150, 255)"); // rgb(0, 0, 0) rgb(150,150,255)
+		//fprintf(f2, "\t<circle cx=\"%u\" cy=\"%u\" r=\"3\" stroke-width=\"1\" stroke=\"rgb(50, 50, 50)\" fill=\"%s\"/>\n", (unsigned)xx[k], (unsigned)yy[k], colors[num_color]);
+		}
+
+		fprintf(f2, "</svg>");
+		fclose(f2);
 	}
 
 	if (idxs)

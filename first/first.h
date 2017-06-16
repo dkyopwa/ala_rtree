@@ -184,9 +184,9 @@ bool find_branch_centers(struct node *nd);
 int x_cmp(const void* a, const void* b);
 int y_cmp(const void* a, const void* b);
 indexer search_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max/*, ret_callback callback, void *arg*/);
-indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, indexer *count_items);
+indexer* search_in_rect(/*in*/struct node *nd, /*in*/coord x_min, /*in*/coord y_min, /*in*/coord x_max, /*in*/coord y_max, /*out*/indexer *count_items);
 indexer search_circle(struct node *nd, coord radius, ret_callback callback, void *arg);
-indexer* search_circles(struct node *nd, coord radius);
+indexer* search_in_circles(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, /*out*/indexer *count_items);
 indexer search_point(struct node *nd, coord x, coord y, coord radius);
 
 #endif //FIRST_H_HEADERS
