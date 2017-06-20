@@ -176,8 +176,14 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 							if (br->merge_next_leaf[k] && br->length[k] > radius) {
 							}
 							else {
+#ifdef OLD_LEAFS
 								coord c1 = br->leafs[k].x - x;
 								coord c2 = br->leafs[k].y - y;
+#else
+								// TO DO LAEFS
+								coord c1 = br->leaf_x[k] - x;
+								coord c2 = br->leaf_y[k] - y;
+#endif // OLD_LEAFS
 								////coord t1 = sqrt(c1 * c1 + c2 * c2);
 								t1 = c1 * c1 + c2 * c2;
 								if (t1 > radius * radius)
@@ -195,10 +201,18 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 								struct point p, line_p0, line_p1;
 								p.x = x;
 								p.y = y;
+#ifdef OLD_LEAFS
 								line_p0.x = br->leafs[k].x;
 								line_p0.y = br->leafs[k].y;
 								line_p1.x = br->leafs[k + 1].x;
 								line_p1.y = br->leafs[k + 1].y;
+#else
+								// TO DO LEAFS
+								line_p0.x = br->leaf_x[k];
+								line_p0.y = br->leaf_y[k];
+								line_p1.x = br->leaf_x[k + 1];
+								line_p1.y = br->leaf_y[k + 1];
+#endif // OLD_LEAFS
 								dist = distance(&p, &line_p0, &line_p1);
 							}
 							else {
@@ -212,6 +226,7 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 							}
 							if (dist < tres.dist) {
 								tres.dist = dist;
+#ifdef OLD_LEAFS
 								tres.idx = br->leafs[k].number;
 								tx = br->leafs[k].x;
 								ty = br->leafs[k].y;
@@ -219,6 +234,16 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 								ty1 = br->leafs[k + 1].y;
 								tn = br->leafs[k].number;
 								tn1 = br->leafs[k + 1].number;
+#else
+								// TO DO LAEFS
+								tres.idx = br->leaf_number[k];
+								tx = br->leaf_x[k];
+								ty = br->leaf_y[k];
+								tx1 = br->leaf_x[k + 1];
+								ty1 = br->leaf_y[k + 1];
+								tn = br->leaf_number[k];
+								tn1 = br->leaf_number[k + 1];
+#endif // OLD_LEAFS
 							}
 							}
 #ifndef FIND_V1
@@ -338,7 +363,12 @@ indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, 
 									idxs = (indexer*)realloc(idxs, sizeof(indexer) * mem_size * count_mem);
 								}
 								// store index of current sergment from shape
+#ifdef OLD_LEAFS
 								idxs[idx] = br->leafs[br->offset[i1]].number;
+#else
+								// TO DO LEAFS
+								idxs[idx] = br->leaf_number[br->offset[i1]];
+#endif // OLD_LEAFS
 								idx++;
 
 								indexer to_end;
@@ -466,8 +496,14 @@ indexer* search_in_circles(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, 
 #ifdef MINIMAL_DEBUG
 							temp_counter1++;
 #endif
+#ifdef OLD_LEAFS
 							c1 = br->leafs[k].x - x;
 							c2 = br->leafs[k].y - y;
+#else
+							// TO DO LEAFS
+							c1 = br->leaf_x[k] - x;
+							c2 = br->leaf_y[k] - y;
+#endif //OLD_LEAFS
 							////coord t1 = sqrt(c1 * c1 + c2 * c2);
 							t1 = c1 * c1 + c2 * c2;
 							if (t1 > radius2)
@@ -479,11 +515,21 @@ indexer* search_in_circles(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, 
 									idxs = (indexer*)realloc(idxs, sizeof(indexer) * mem_size * count_mem);
 								}
 								// store index of current sergment from shape
+#ifdef OLD_LEAFS
 								idxs[idx] = br->leafs[k].number;
+#else
+								// TO DO LEAFS
+								idxs[idx] = br->leaf_number[k];
+#endif // OLD_LEAFS
 
 								do {
 									++k;
+#ifdef OLD_LEAFS
 								} while (idxs[idx] == br->leafs[k].number);
+#else
+									// TO DO LEAFS
+								} while (idxs[idx] == br->leaf_number[k]);
+#endif // OLD_LRAFS
 								idx++;
 							}
 #ifdef MINIMAL_DEBUG

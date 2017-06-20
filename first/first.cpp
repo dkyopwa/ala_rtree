@@ -80,11 +80,25 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 	//((struct branch*)(nds[0].child_node[0]))->leafs = (struct leaf*)realloc(((struct branch*)(nds[0].child_node[0]))->leafs, sizeof(struct leaf) * total_mem);
 	init_root(&(lll[0]));
 	struct branch *br1 = (struct branch*)(m_nodes->child_node[0]);
+#ifdef OLD_LEAFS
 	br1->leafs = (struct leaf*)malloc(sizeof(struct leaf) * total_mem);
+#else
+	// TO DO LEAFS
+	br1->leaf_x = (coord*)malloc(sizeof(coord) * total_mem);
+	br1->leaf_y = (coord*)malloc(sizeof(coord) * total_mem);
+	br1->leaf_number = (indexer*)malloc(sizeof(indexer) * total_mem);
+#endif // OLD_LEAFS
 	br1->merge_next_leaf = (bool*)malloc(sizeof(bool) * total_mem);
 	for (unsigned i = 0; i < cpus; ++i) {
 		// copy leafs
+#ifdef OLD_LEAFS
 		memcpy(br1->leafs + br1->count_leafs, ((struct branch*)(nds[i].child_node[0]))->leafs, ((struct branch*)(nds[i].child_node[0]))->count_leafs * sizeof(struct leaf));
+#else
+		// TO DO LEAFS
+		memcpy(br1->leaf_x + br1->count_leafs, ((struct branch*)(nds[i].child_node[0]))->leaf_x, ((struct branch*)(nds[i].child_node[0]))->count_leafs * sizeof(coord));
+		memcpy(br1->leaf_y + br1->count_leafs, ((struct branch*)(nds[i].child_node[0]))->leaf_y, ((struct branch*)(nds[i].child_node[0]))->count_leafs * sizeof(coord));
+		memcpy(br1->leaf_number + br1->count_leafs, ((struct branch*)(nds[i].child_node[0]))->leaf_number, ((struct branch*)(nds[i].child_node[0]))->count_leafs * sizeof(indexer));
+#endif // OLD_LEAFS
 		memcpy(br1->merge_next_leaf + br1->count_leafs, ((struct branch*)(nds[i].child_node[0]))->merge_next_leaf, ((struct branch*)(nds[i].child_node[0]))->count_leafs * sizeof(bool));
 		br1->count_leafs += ((struct branch*)(nds[i].child_node[0]))->count_leafs;
 		// find max boundary
@@ -99,7 +113,14 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 		
 		// free memory
 		free(((struct branch*)(nds[i].child_node[0]))->merge_next_leaf);
+#ifdef OLD_LEAFS
 		free(((struct branch*)(nds[i].child_node[0]))->leafs);
+#else
+		// TO DO LEAFS
+		free(((struct branch*)(nds[i].child_node[0]))->leaf_x);
+		free(((struct branch*)(nds[i].child_node[0]))->leaf_y);
+		free(((struct branch*)(nds[i].child_node[0]))->leaf_number);
+#endif // OLD_LEAFS
 		free(((struct branch*)(nds[i].child_node[0])));
 		free(nds[i].center_child_node);
 		free(nds[i].child_node);
@@ -136,6 +157,7 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 			struct branch *tbr = (struct branch*)(m_nodes->child_node)[i];
 			tbr->length = (coord*)malloc(sizeof(coord) * tbr->count_leafs);
 
+#ifdef OLD_LEAFS
 			tbr->x_min = tbr->leafs[0].x;
 			tbr->x_max = tbr->leafs[0].x;
 			tbr->y_min = tbr->leafs[0].y;
@@ -158,6 +180,31 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 				coord cy = tbr->leafs[j - 1].y - tbr->leafs[j].y;
 				tbr->length[j - 1] = sqrt(cx * cx + cy * cy);
 			}
+#else
+			// TO DO LEAFS
+			tbr->x_min = tbr->leaf_x[0];
+			tbr->x_max = tbr->leaf_x[0];
+			tbr->y_min = tbr->leaf_y[0];
+			tbr->y_max = tbr->leaf_y[0];
+			for (indexer j = 1; j < tbr->count_leafs; ++j) {
+				// boundary
+				if (tbr->leaf_x[j] < tbr->x_min)
+					tbr->x_min = tbr->leaf_x[j];
+				else if (tbr->leaf_x[j] > tbr->x_max) {
+					tbr->x_max = tbr->leaf_x[j];
+				}
+				if (tbr->leaf_y[j] < tbr->y_min)
+					tbr->y_min = tbr->leaf_y[j];
+				else if (tbr->leaf_y[j] > tbr->y_max) {
+					tbr->y_max = tbr->leaf_y[j];
+				}
+
+				// length
+				coord cx = tbr->leaf_x[j - 1] - tbr->leaf_x[j];
+				coord cy = tbr->leaf_y[j - 1] - tbr->leaf_y[j];
+				tbr->length[j - 1] = sqrt(cx * cx + cy * cy);
+			}
+#endif // OLD_LEAFS
 
 			// boundary
 			tbr->offset = (indexer*)malloc(sizeof(indexer) * tbr->count_shapes);
@@ -166,6 +213,7 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 			tbr->ysh_min = (coord*)malloc(sizeof(coord) * tbr->count_shapes);
 			tbr->ysh_max = (coord*)malloc(sizeof(coord) * tbr->count_shapes);
 			indexer k = 0;
+#ifdef OLD_LEAFS
 			indexer tj = tbr->leafs[0].number;
 			tbr->offset[k] = 0;
 			coord xsh_min, xsh_max, ysh_min, ysh_max;
@@ -193,6 +241,36 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 				else if (ysh_max < tbr->leafs[j].y)
 					ysh_max = tbr->leafs[j].y;
 			}
+#else
+			// TO DO LEAFS
+			indexer tj = tbr->leaf_number[0];
+			tbr->offset[k] = 0;
+			coord xsh_min, xsh_max, ysh_min, ysh_max;
+			xsh_min = xsh_max = tbr->leaf_x[0];
+			ysh_min = ysh_max = tbr->leaf_y[0];
+			for (indexer j = 1; j < tbr->count_leafs; ++j) {
+				if (tj != tbr->leaf_number[j]) {
+					tbr->xsh_min[k] = xsh_min;
+					tbr->xsh_max[k] = xsh_max;
+					tbr->ysh_min[k] = ysh_min;
+					tbr->ysh_max[k] = ysh_max;
+					++k;
+					tbr->offset[k] = j;
+					xsh_min = xsh_max = tbr->leaf_x[j];
+					ysh_min = ysh_max = tbr->leaf_y[j];
+					tj = tbr->leaf_number[j];
+					continue;
+				}
+				if (xsh_min > tbr->leaf_x[j])
+					xsh_min = tbr->leaf_x[j];
+				else if (xsh_max < tbr->leaf_x[j])
+					xsh_max = tbr->leaf_x[j];
+				if (ysh_min > tbr->leaf_y[j])
+					ysh_min = tbr->leaf_y[j];
+				else if (ysh_max < tbr->leaf_y[j])
+					ysh_max = tbr->leaf_y[j];
+			}
+#endif // OLD_LEAFS
 			tbr->xsh_min[k] = xsh_min;
 			tbr->xsh_max[k] = xsh_max;
 			tbr->ysh_min[k] = ysh_min;
@@ -354,11 +432,22 @@ void init_root(const void* p) {
 	tbr->merge_next_leaf = NULL;
 	tbr->curr_mem_pos = 0;
 	tbr->alloc_mem_times = 0;
+#ifdef OLD_LEAFS
 	tbr->leafs =  NULL;
+#else
+	// TO DO LEAFS
+	tbr->leaf_x = NULL;
+	tbr->leaf_y = NULL;
+	tbr->leaf_number = NULL;
+#endif // OLD_LEAFS
 }
 
 /// init empty root of tree v2
+#ifdef OLD_LEAFS
 void init_root2(struct node *nd, const void* p) {
+#else
+void init_root2(struct node *nd, coord x, coord y) {
+#endif // OLD_LEAFS
 	// nd = (struct node*)malloc(sizeof(struct node));
 	nd->count_child_nodes = 1;
 	struct branch *tbr = (struct branch*)malloc(sizeof(struct branch));
@@ -382,12 +471,20 @@ void init_root2(struct node *nd, const void* p) {
 	nd->center_child_node[0].pos = NULL;
 
 	// set first leaf
+#ifdef OLD_LEAFS
 	struct leaf *lf = (struct leaf*)p;
 
 	nd->x1 = lf->x;
 	nd->y1 = lf->y;
 	nd->x2 = lf->x;
 	nd->y2 = lf->y;
+#else
+	// TO DO LEAFS
+	nd->x1 = x;
+	nd->y1 = y;
+	nd->x2 = x;
+	nd->y2 = y;
+#endif // OLD_LEAFS
 
 	//struct branch *br = (struct branch*)m_nodes->child_node[0];
 	tbr->count_leafs = 0;
@@ -395,7 +492,14 @@ void init_root2(struct node *nd, const void* p) {
 	tbr->merge_next_leaf = NULL;
 	tbr->curr_mem_pos = 0;
 	tbr->alloc_mem_times = 0;
+#ifdef OLD_LEAFS
 	tbr->leafs = NULL;
+#else
+	// TO DO LEAFS
+	tbr->leaf_x = NULL;
+	tbr->leaf_y = NULL;
+	tbr->leaf_number = NULL;
+#endif // OLD_LEAFS
 }
 
 /// delete root
@@ -414,8 +518,11 @@ void del_root()
 			struct branch *br = (struct branch*)(nd->child_node)[i];
 			if (br->merge_next_leaf)
 				free(br->merge_next_leaf);
+#ifdef OLD_LEADS
 			if (br->leafs)
 				free(br->leafs);
+#else
+#endif // OLD_LEAFS
 			if (br->length)
 				free(br->length);
 		}
@@ -441,7 +548,10 @@ void del_root()
 						first_branch = br;
 					free(br->merge_next_leaf);
 					//free(br->center);
+#ifdef OLD_LEAFS
 					free(br->leafs);
+#else
+#endif // OLD_LEAFS
 					free(br->length);
 					// boundary
 					free(br->xsh_max);
@@ -613,45 +723,13 @@ void del_root()
 	// free(m_nodes);
 }
 
-/// add leaf
-void add_leaf(struct branch *br, struct leaf *lf, bool merged_next_leaf)
-{
-	// temp for count
-	unsigned tmp = br->count_leafs;
-	// struct branch *br = m_nodes[i].child_node;
-	if (br->leafs == NULL) {
-		br->leafs = (struct leaf*)malloc(sizeof(struct leaf) * 1);
-		//br->count_merged_leafs = (unsigned*)malloc(sizeof(unsigned) * 1);
-		br->merge_next_leaf = (bool*)malloc(sizeof(bool) * 1);
-		br->count_leafs = 1;
-	} else {
-		++(br->count_leafs);
-		//printf("Now leafs = %u\n", br->count_leafs);
-		br->leafs = (struct leaf*)realloc(br->leafs, sizeof(struct leaf) * br->count_leafs);
-		//br->count_merged_leafs = (unsigned*)realloc(br->count_merged_leafs, sizeof(unsigned) * br->count);
-		br->merge_next_leaf = (bool*)realloc(br->merge_next_leaf, sizeof(bool) * br->count_leafs);
-	}
-	memcpy(br->leafs + tmp, lf, sizeof(struct leaf));
-	(br->merge_next_leaf)[tmp] = merged_next_leaf; // count_of_leafs
-}
-
-/// add leafs
-void add_leafs(struct branch *br, struct leaf *lf, unsigned count_of_leafs)
-{
-	for (unsigned j = 0; j < count_of_leafs; ++j) {
-		if (j == count_of_leafs - 1)
-			add_leaf(br, &(lf[j]), false);
-		else
-			add_leaf(br, &(lf[j]), true);
-	}
-}
-
 /// add leafs v2
-bool add_leafs2(struct branch *br, struct leaf *lf, unsigned count_of_leafs)
+bool add_leafs2(struct branch *br, struct leaf *lf, indexer count_of_leafs)
 {
 	// temp for count
 	// unsigned tmp = 0; // br->count_leafs;
 	// struct branch *br = m_nodes[i].child_node;
+#ifdef OLD_LEAFS
 	if (br->leafs == NULL) {
 		br->leafs = (struct leaf*)malloc(sizeof(struct leaf) * m_max_added_leafs_in_iter);
 		br->merge_next_leaf = (bool*)malloc(sizeof(bool) * m_max_added_leafs_in_iter);
@@ -667,6 +745,33 @@ bool add_leafs2(struct branch *br, struct leaf *lf, unsigned count_of_leafs)
 	//br->merge_next_leaf = (bool*)malloc(sizeof(bool) * count_of_leafs);
 	br->count_leafs += count_of_leafs;
 	memcpy(br->leafs + br->curr_mem_pos, lf, sizeof(struct leaf) * count_of_leafs);
+#else
+	// TO DO LEAFS
+	if (br->leaf_x == NULL) {
+		br->leaf_x = (coord*)malloc(sizeof(coord) * m_max_added_leafs_in_iter);
+		br->leaf_y = (coord*)malloc(sizeof(coord) * m_max_added_leafs_in_iter);
+		br->leaf_number = (indexer*)malloc(sizeof(indexer) * m_max_added_leafs_in_iter);
+		br->merge_next_leaf = (bool*)malloc(sizeof(bool) * m_max_added_leafs_in_iter);
+		br->alloc_mem_times = 1;
+	}
+	else {
+		if (br->count_leafs + count_of_leafs > br->alloc_mem_times * m_max_added_leafs_in_iter) {
+			++(br->alloc_mem_times);
+			br->leaf_x = (coord*)realloc(br->leaf_x, sizeof(coord) * br->alloc_mem_times * m_max_added_leafs_in_iter);
+			br->leaf_y = (coord*)realloc(br->leaf_y, sizeof(coord) * br->alloc_mem_times * m_max_added_leafs_in_iter);
+			br->leaf_number = (indexer*)realloc(br->leaf_number, sizeof(indexer) * br->alloc_mem_times * m_max_added_leafs_in_iter);
+			br->merge_next_leaf = (bool*)realloc(br->merge_next_leaf, sizeof(bool) * br->alloc_mem_times * m_max_added_leafs_in_iter);
+		}
+	}
+
+	br->count_leafs += count_of_leafs;
+	// memcpy(br->leafs + br->curr_mem_pos, lf, sizeof(struct leaf) * count_of_leafs);
+	for (indexer i = 0; i < count_of_leafs; ++i) {
+		br->leaf_x[br->curr_mem_pos + i] = lf[i].x;
+		br->leaf_y[br->curr_mem_pos + i] = lf[i].y;
+		br->leaf_number[br->curr_mem_pos + i] = lf[i].number;
+	}
+#endif // OLD_LEAFS
 	unsigned i = br->curr_mem_pos;
 	for (; i < br->count_leafs - 1; ++i) {
 		(br->merge_next_leaf)[i] = true; // count_of_leafs
@@ -674,442 +779,6 @@ bool add_leafs2(struct branch *br, struct leaf *lf, unsigned count_of_leafs)
 	(br->merge_next_leaf)[i] = false;
 	br->curr_mem_pos = br->count_leafs;
 	return true;
-}
-
-/// add item to tree (depricate)
-/// must call only with root node
-/// return flag is added
-bool add(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs) {
-	if (is_leaf) {
-		if (!add_leaf_in_boundary(nd, is_leaf, p, count_of_leafs))
-			add_leaf_out_boundary(nd, is_leaf, p, count_of_leafs);
-
-		// check to separate nodes
-		// TO DO
-//////////////////////////////////////////////////		check_separate(nd);
-		//if (((struct branch *)m_nodes[idx_node].child_node)->count_leafs > MAX_ITEMS_IN_NODE) {
-			// separate
-		//}
-
-		//if (flag)
-		//	return true;
-		return false;
-	} else {
-		// not leaf
-
-	}
-	return false;
-}
-
-/// possible depricated
-bool add_leaf_in_boundary(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs)
-{
-	// flag to added leaf
-	//bool flag = false;
-	// is leaf
-	struct leaf *l = (struct leaf*)p;
-	// index of node where insert in boundary
-	unsigned idx_node;
-	// flag in the bondary
-	bool in_boundary = true;
-
-	// recusive to childen nodes
-	if (!nd->is_last_node) {
-		for  (unsigned i = 0; i < nd->count_child_nodes; ++i) {
-			if (add_leaf_in_boundary(&((struct node*)(nd->child_node))[i], is_leaf, p, count_of_leafs))
-				return true;
-		}
-		//lprintf("Error add_leaf_in_boundary 1");
-		return false;
-	}
-
-	for (unsigned i = 0; i < nd->count_child_nodes; ++i) { /// TO DO may be remove this circle
-		/*char tch [1024] = {};
-		sprintf(tch, "%d: %f", i, l->x);
-		lprintf(tch);
-		*/
-
-		// check boundary
-		for (unsigned j = 0; j < count_of_leafs; ++j) {
-			if (l[j].x >= nd[i].x1 && l[j].x <= nd[i].x2 && l[j].y >= nd[i].y1 && l[j].y <= nd[i].y2) {
-				// ???
-				idx_node = i;
-			} else {
-				in_boundary = false;
-				break;
-			}
-		}
-		if (in_boundary)
-			break;
-	}
-	
-	// debug info
-	/* char tch[128] = {0};
-	sprintf(tch, "in boundary = %d (x1 = %f, x2 = %f, y1 = %f, y2 = %f)", in_boundary, nd[idx_node].x1, nd[idx_node].x2, nd[idx_node].y1, nd[idx_node].y2);
-	lprintf(tch);
-	*/
-
-	if (in_boundary) {
-		// in the boundary, try to add leaf
-		if (!add_leafs2((struct branch *)((nd->child_node)[idx_node]), l, count_of_leafs))
-			printf("error 1\n");
-		//for (unsigned j = 0; j < count_of_leafs; ++j) {
-		//	if (j == count_of_leafs - 1)
-		//		add_leaf(m_nodes[i].child_node, &(l[j]), false);
-		//	else
-		//		add_leaf(m_nodes[i].child_node, &(l[j]), true);
-			//struct branch *br = m_nodes[i].child_node;
-			/* if (br->leafs == NULL) {
-				br->leafs = (struct leaf*)malloc(sizeof(struct leaf) * 1);
-				//br->count_merged_leafs = (unsigned*)malloc(sizeof(unsigned) * 1);
-				br->merge_next_leaf = (bool*)malloc(sizeof(malloc) * 1);
-				br->count = 1;
-			} else {
-				++(br->count);
-				br->leafs = (struct leaf*)realloc(br->leafs, sizeof(struct leaf) * br->count);
-				//br->count_merged_leafs = (unsigned*)realloc(br->count_merged_leafs, sizeof(unsigned) * br->count);
-				br->merge_next_leaf = (bool*)realloc(br->merge_next_leaf, sizeof(bool) * br->count);
-			}
-			memcpy(br->leafs + br->count - 1, l, sizeof(struct leaf));
-			//br->count_merged_leafs[br->count - 1] = 1; // count_of_leafs
-			*/
-			//if (count_of_leafs == 1)
-			//	br->merge_next_leaf = false;
-			//else {
-				// TO DO
-				// insert next leaf
-			//}
-		//}
-		//flag = true;
-		return true;
-	}
-	//////////// lprintf("Error add_leaf_in_boundary 2");
-	return false;
-}
-
-/// possible depricated
-bool add_leaf_out_boundary(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs)
-{
-	// TO DO +++
-	// not in the boundary
-	// unsigned idx_node = 0;
-	bool flag = false;
-	// is leaf
-	struct leaf *l = (struct leaf*)p;
-
-	// need to expand boundary
-	coord min_square = (coord)999999999999.0;
-	coord min_fake_x1 = (coord)999999999999.0, min_fake_y1 = (coord)999999999999.0, min_fake_x2 = (coord)999999999999.0, min_fake_y2 = (coord)999999999999.0;
-	// select node to expand
-	//unsigned idx = 0;
-	coord fake_x1, fake_y1, fake_x2, fake_y2;
-
-	// as in first time nd == m_nodes than nd->is_last -> true, than nd->child is branch
-	//for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
-	//	struct node* tnd = (struct node*)((nd->child_node)[j]);
-		struct branch* tbr = (struct branch*)((nd->child_node)[0]);
-		for (unsigned k = 0; k < count_of_leafs; ++k) {
-			if (l[k].x < nd->x1 && l[k].x < nd->x2) {
-				// expand left boundary
-				fake_x1 = l[k].x;
-				if (!k)
-					fake_x2 = nd->x2;
-			} else if (l[k].x > nd->x1 && l[k].x > nd->x2) {
-				// expand right boundary
-				if (!k)
-					fake_x1 = nd->x1;
-				fake_x2 = l[k].x;
-			} else if (!k) {
-				fake_x1 = nd->x1;
-				fake_x2 = nd->x2;
-			}
-			if (l[k].y < nd->y1 && l[k].y < nd->y2) {
-				// expand left boundary
-				fake_y1 = l[k].y;
-				if (!k)
-					fake_y2 = nd->y2;
-			} else if (l[k].y > nd->y1 && l[k].y > nd->y2) {
-				// expand right boundary
-				if (!k)
-					fake_y1 = nd->y1;
-				fake_y2 = l[k].y;
-			} else if (!k) {
-				fake_y1 = nd->y1;
-				fake_y2 = nd->y2;
-			}
-		}
-		coord square = fabs(fake_x1 - fake_x2) * fabs(fake_y1 - fake_y2);
-		char tch[1024] = {0};
-///////////		sprintf(tch, "square = %f, x1 = %f, x2 = %f, y1 = %f, y2 = %f, count_of_leafs = %d", square, fake_x1, fake_x2, fake_y1, fake_y2, count_of_leafs);
-///////////		lprintf(tch);
-		if (square < min_square) {
-			// idx_node = j;
-			min_square = square;
-			min_fake_x1 = fake_x1;
-			min_fake_y1 = fake_y1;
-			min_fake_x2 = fake_x2;
-			min_fake_y2 = fake_y2;
-		}
-	//}
-
-	// recusive to childen nodes
-		// in the first time never work
-	if (!nd->is_last_node) {
-		//for  (unsigned i = 0; i < nd->count_nodes; ++i) {
-			if (add_leaf_out_boundary((struct node*)((nd->child_node)[0/* idx_node */]), is_leaf, p, count_of_leafs)) {
-				flag = true;
-				//break;
-			}
-		//}
-		//return false;
-	} else {
-		flag = true;
-	}
-	
-	// TO DO boundary
-	if (flag) {
-		// expand boundary and add leaf
-		// expand node
-		// as first time, than never use idx
-		nd/*m_nodes[idx_node].*/->x1 = min_fake_x1;
-		nd/*m_nodes[idx_node].*/->y1 = min_fake_y1;
-		nd/*m_nodes[idx_node].*/->x2 = min_fake_x2;
-		nd/*m_nodes[idx_node].*/->y2 = min_fake_y2;
-		// add leaf
-		if (nd->is_last_node)
-			if (!add_leafs2((struct branch *)((nd->child_node)[0/*idx_node*/]), l, count_of_leafs)) {
-				printf("error 2\n");
-			}
-		return true;
-	}
-	return false;
-}
-
-/// old functions (depricated)
-struct node* check_separate(struct node* nd)
-{
-	struct node* tmp_nd = NULL;
-
-	// check leafs
-	if (nd->is_last_node) {
-		struct branch *br = (struct branch*)nd->child_node;
-		//printf("1 = %u > %u\n", br->count_leafs, MAX_ITEMS_IN_NODE);
-		if (br != NULL && br->count_leafs > MAX_ITEMS_IN_NODE) {
-			// find center
-			coord *xc, *yc;
-			xc = (coord*)malloc(sizeof(coord) * br->count_leafs);
-			yc = (coord*)malloc(sizeof(coord) * br->count_leafs);
-			unsigned idxc = 0;
-			struct leaf *l = NULL;
-			coord minx, maxx, miny, maxy;
-			bool first_iter = true;
-			//unsigned ixd_center_item = 0;
-			//bool find_center_item = false;
-			for (unsigned i = 0; i < br->count_leafs; ++i) {
-				l = &(br->leafs)[i];
-				if (first_iter) {
-					minx = l->x;
-					miny = l->y;
-					maxx = l->x;
-					maxy = l->y;
-					first_iter = false;
-					if ((br->merge_next_leaf)[i])
-						continue;
-				}
-
-				/// after try to change without if (from habr cuda https://habrahabr.ru/post/204682/)
-				if (l->x < minx)
-					minx = l->x;
-				if (l->x > maxx)
-					maxx = l->x;
-				if (l->y < miny)
-					miny = l->y;
-				if (l->y > maxy)
-					maxy = l->y;
-
-				if (!(br->merge_next_leaf)[i]) {
-					xc[idxc] = (maxx - minx) / 2.0 + minx;
-					yc[idxc] = (maxy - miny) / 2.0 + miny;
-
-					// find center in points
-					/*if (!find_center_item && br->count_leafs / 2 > i) {
-						find_center_item = true;
-						ixd_center_item = idxc;
-					}*/
-
-					++idxc;
-					first_iter = true;
-				}
-			}
-			// try to separate
-			// sort xc? than yc
-			unsigned count_centers = idxc;
-			unsigned *pos_idx_x = (unsigned*)malloc(sizeof(unsigned) * count_centers);
-			unsigned *pos_idx_y = (unsigned*)malloc(sizeof(unsigned) * count_centers);
-			for (unsigned i = 0; i < count_centers; ++i) {
-				pos_idx_x[i] = i;
-				pos_idx_y[i] = i;
-			}
-			// sort xc and yc
-			/*quick_sort_r_mass(xc, count_centers, pos_idx_x);
-			FILE *f1 = fopen("1.txt", "w");
-			if (f1) {
-				for (unsigned i = 0; i < count_centers; ++i)
-					fprintf(f1, "%d: xc = %f, yc = %f\n", pos_idx_x[i], xc[i], yc[i]);
-				fclose(f1);
-			} */
-///////////////////			q_sort_mas(xc, count_centers, pos_idx_x);
-			/* f1 = fopen("2.txt", "w");
-			if (f1) {
-				for (unsigned i = 0; i < count_centers; ++i)
-					fprintf(f1, "%d: xc = %f, yc = %f\n", pos_idx_x[i], xc[i], yc[i]);
-				fclose(f1);
-			} */
-////////////////////			q_sort_mas(yc, count_centers, pos_idx_y);
-			// find area axix x
-			coord area_x1 = 0.0, area_x2 = 0.0;
-			coord area_y1 = 0.0, area_y2 = 0.0;
-			area_x1 = (xc[(unsigned)(count_centers / 2)] - xc[0]) * (yc[count_centers - 1] - yc[0]);
-			area_x2 = (xc[count_centers - 1] - xc[(unsigned)(count_centers / 2) + 1]) * (yc[count_centers - 1] - yc[0]);
-			area_y1 = (yc[(unsigned)(count_centers / 2)] - yc[0]) * (xc[count_centers - 1] - xc[0]);
-			area_y2 = (yc[count_centers - 1] - yc[(unsigned)(count_centers / 2) + 1]) * (xc[count_centers - 1] - xc[0]);
-
-			char tch[1024] = {0};
-//////////////////////			sprintf(tch, "area_x1 = %f, area_x2 = %f, area_y1 = %f, area_y2 = %f, count_centers = %u", area_x1, area_x2, area_y1, area_y2, count_centers);
-			lprintf(tch);
-/////////////////////			sprintf(tch, "1: min_x = %f, center1 = %f, center2 = %f, max_x = %f, min_y = %f, max_y = %f", xc[0], xc[(unsigned)(count_centers / 2)], xc[(unsigned)(count_centers / 2) + 1], xc[count_centers - 1], yc[0], yc[count_centers - 1]);
-			lprintf(tch);
-
-			// TO DO
-			// separate leafs
-			// choose separate method (side)
-			bool separate_by_x = false;
-			coord area_x = area_x1 + area_x2;
-			coord area_y = area_y1 + area_y2;
-#ifndef _WIN
-			min_max_sort(area_x, area_y);
-#else
-//////////////			min_max_sort(&area_x, &area_y);
-#endif
-			if (area_x * 1.15 < area_y) {
-				if (area_x1 + area_x2 > area_y1 + area_y2) {
-					// separate by Y
-					separate_by_x = false;
-				} else {
-					// separate by X
-					separate_by_x = true;
-				}
-			} else {
-				// find more square figure
-				coord x1 = xc[(unsigned)(count_centers / 2)] - xc[0];
-				coord y1 = yc[count_centers - 1] - yc[0];
-				coord x2 = xc[count_centers - 1] - xc[0];
-				coord y2 = yc[(unsigned)(count_centers / 2)] - yc[0];
-#ifndef _WIN
-				min_max_sort(x1, y1);
-				min_max_sort(x2, y2);
-#else
-///////////////				min_max_sort(&x1, &y1);
-///////////////				min_max_sort(&x2, &y2);
-#endif
-				if (x1 / y1 > x2 / y2) {
-					// separate by Y
-					separate_by_x = false;
-				} else {
-					// separate by X
-					separate_by_x = true;
-				}
-			}
-			struct node *tnd = NULL;
-			if (separate_by_x)
-				tnd = separate_leafs(nd, count_centers, pos_idx_x);
-			else
-				tnd = separate_leafs(nd, count_centers, pos_idx_y);
-
-			// free
-			free(pos_idx_x);
-			free(pos_idx_y);
-			free(xc);
-			free(yc);
-
-			return tnd;
-		}
-		return NULL;
-	} else {
-		// recursive moving on tree
-		for (unsigned i = 0; i < nd->count_child_nodes; ++i) {
-			if (nd->is_last_node)
-				break;
-			struct node *tnd = (struct node*)(nd->child_node[i]);
-			tmp_nd = check_separate(tnd);
-
-			// check temporary node
-			if (tmp_nd) {
-				// add node to tree
-				*(nd->child_node) = realloc(*(nd->child_node), sizeof(struct branch*) * nd->count_child_nodes + 1);
-				(nd->child_node)[nd->count_child_nodes] = tmp_nd;
-				++(nd->count_child_nodes);
-			}
-		}
-
-		// check count of nodes
-		if (!(nd->is_last_node) && nd->count_child_nodes > MAX_NODES) {
-			// separate nodes
-			tmp_nd = separate(nd);
-			//////////////////////////// to do;
-		}
-		return tmp_nd;
-	}
-
-	return NULL;
-}
-
-/// old fubctions (depricated)
-struct node* separate_leafs(struct node* nd, unsigned count_senters_items, unsigned *pos_idx) //_x, unsigned *pos_idx_y, bool separate_by_x)
-{
-	struct branch *br = (struct branch*)nd->child_node;
-	struct branch *new_br1 = (struct branch*)malloc(sizeof(struct branch));
-	struct branch *new_br2 = (struct branch*)malloc(sizeof(struct branch));
-
-	// check for axis to separate
-	/*if (!separate_by_x) {
-		unsigned *t = pos_idx_x;
-		pos_idx_x = pos_idx_y;
-		pos_idx_y = t;
-	}*/
-
-	unsigned j;
-	for (unsigned i = 0; i < (unsigned)(count_senters_items / 2); ++i) {
-		j = 0;
-		bool flag = (br->merge_next_leaf)[pos_idx[i] + j];
-		do {
-			add_leaf(new_br1, br->leafs + pos_idx[i] + j, flag);
-			++j;
-		} while (flag);
-	}
-	for (unsigned i = (unsigned)(count_senters_items / 2) + 1; i < count_senters_items; ++i) {
-		j = 0;
-		bool flag = (br->merge_next_leaf)[pos_idx[i] + j];
-		do {
-			add_leaf(new_br2, br->leafs + pos_idx[i] + j, flag);
-			++j;
-		} while (flag);
-	}
-
-	// free current branch
-	//for (unsigned i = 0; i < br->count_leafs; ++i) {
-		free(br->leafs);
-		free(br->merge_next_leaf);
-	//}
-	// update current node
-	(nd->child_node)[0] = new_br1;
-	// create new node for other branch
-	struct node *nd_new = (struct node*)malloc(sizeof(struct node));
-	*nd_new->child_node = malloc(sizeof(struct branch*));
-	(nd_new->child_node)[0] = new_br2;
-
-	// return new node
-	return nd_new;
 }
 
 /// compare centers x in branch
@@ -1259,7 +928,14 @@ struct node* separate(struct node* nd)
 			cshapes = positions1[i].idx2 - positions1[i].idx1 + 1;
 			tcleafs = positions1[i].count_leafs;
 
+#ifdef OLD_LEAFS
 			br1[i].leafs = (struct leaf*)malloc(sizeof(struct leaf) * tcleafs);
+#else
+			// TO DO LEAFS
+			br1[i].leaf_x = (coord*)malloc(sizeof(coord) * tcleafs);
+			br1[i].leaf_y = (coord*)malloc(sizeof(coord) * tcleafs);
+			br1[i].leaf_number = (indexer*)malloc(sizeof(indexer) * tcleafs);
+#endif // OLD_LEAFS
 			br1[i].merge_next_leaf = (bool*)malloc(sizeof(bool) * tcleafs);
 
 			br1[i].alloc_mem_times = (unsigned)-1;
@@ -1268,7 +944,14 @@ struct node* separate(struct node* nd)
 			br1[i].count_leafs = tcleafs;
 			indexer count_of_leafs = 0;
 			for (indexer j = 0; j < cshapes; ++j) {
+#ifdef OLD_LEAFS
 				memcpy(br1[i].leafs + count_of_leafs, br->center[j + total_count_shapes].pos_leaf, sizeof(struct leaf) * br->center[j + total_count_shapes].count_leafs);
+#else
+				// TO DO LEAFS
+				memcpy(br1[i].leaf_x + count_of_leafs, (void*)&(br->leaf_x[br->center[j + total_count_shapes].pos_leaf]), sizeof(coord) * br->center[j + total_count_shapes].count_leafs);
+				memcpy(br1[i].leaf_y + count_of_leafs, (void*)&(br->leaf_y[br->center[j + total_count_shapes].pos_leaf]), sizeof(coord) * br->center[j + total_count_shapes].count_leafs);
+				memcpy(br1[i].leaf_number + count_of_leafs, (void*)&(br->leaf_number[br->center[j + total_count_shapes].pos_leaf]), sizeof(indexer) * br->center[j + total_count_shapes].count_leafs);
+#endif // OLD_LEAFS
 				indexer k = count_of_leafs;
 				for (; k < count_of_leafs + br->center[j + total_count_shapes].count_leafs - 1; ++k) {
 					br1[i].merge_next_leaf[k] = true;
@@ -1281,6 +964,7 @@ struct node* separate(struct node* nd)
 			total_count_shapes += cshapes;
 
 			// calculate boundary of branches
+#ifdef OLD_LEAFS
 			coord xmi = br1[i].leafs[0].x;
 			coord xma = xmi;
 			coord ymi = br1[i].leafs[0].y;
@@ -1295,6 +979,23 @@ struct node* separate(struct node* nd)
 				if (br1[i].leafs[j].y > yma)
 					yma = br1[i].leafs[j].y;
 			}
+#else
+			// TO DO LEAFS
+			coord xmi = br1[i].leaf_x[0];
+			coord xma = xmi;
+			coord ymi = br1[i].leaf_y[0];
+			coord yma = ymi;
+			for (indexer j = 1; j < br1[i].count_leafs; ++j) {
+				if (br1[i].leaf_x[j] < xmi)
+					xmi = br1[i].leaf_x[j];
+				if (br1[i].leaf_x[j] > xma)
+					xma = br1[i].leaf_x[j];
+				if (br1[i].leaf_y[j] < ymi)
+					ymi = br1[i].leaf_y[j];
+				if (br1[i].leaf_y[j] > yma)
+					yma = br1[i].leaf_y[j];
+			}
+#endif // OLD_LEAFS
 			br1[i].x_min = xmi;
 			br1[i].x_max = xma;
 			br1[i].y_min = ymi;
@@ -1303,7 +1004,14 @@ struct node* separate(struct node* nd)
 
 		// delete old branch and exchange on curernt branches
 		free(br->center);
+#ifdef OLD_LEAFS
 		free(br->leafs);
+#else
+		// TO DO LAEFS
+		free(br->leaf_x);
+		free(br->leaf_y);
+		free(br->leaf_number);
+#endif // OLD_LEAFS
 		free(br->merge_next_leaf);
 		free(br);
 		free(nd->child_node);
@@ -1416,51 +1124,6 @@ bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_
 	return false;
 }
 
-/// firts thread, possible depricated
-void first_thread(void *params)
-{
-#ifndef _WIN
-#else
-
-	/* // test
-	printf("%u\n", *(unsigned*)params);
-	Sleep(1000);
-	*/
-#endif // _WIN
-
-	struct first_thr_st *ftst = (struct first_thr_st*)params;
-	
-	char tch[32];
-#ifndef _WIN
-	snprintf(tch, 32, "Start %u", ftst->start_pos_leafs);
-#else
-	sprintf_s(tch, 32, "Start %u", ftst->start_pos_leafs);
-#endif
-	lprintf(tch);
-
-	// init tree
-	init_root2(ftst->node_, &(ftst->leafs_)[ftst->start_pos_leafs]);
-
-	unsigned ii = 0;
-	unsigned offset = 0; // offsets_leafs[ii++];
-	unsigned t1 = 0;
-						 // create tree
-	for (unsigned i = ftst->start_pos_leafs /*0*/; i < ftst->start_pos_leafs + ftst->count_leaf /*count_of_leafs*/; i += offset) {
-		//printf("=============================== ADD  %u\n", i);
-		offset = (ftst->offsets_leafs_)[ii++]; // offsets_leafs[ii++];
-		add(ftst->node_, true, &((ftst->leafs_)[i]), offset);
-		t1 += offset;
-	}
-
-#ifndef _WIN
-	snprintf(tch, 32, "Stop %u (t1 = %u)", ftst->start_pos_leafs, t1);
-#else
-	sprintf_s(tch, 32, "Stop %u (t1 = %u)", ftst->start_pos_leafs, t1);
-#endif
-	lprintf(tch);
-	return;
-}
-
 /// first tharead v2
 #ifndef _WIN
 void* first_thread_v2(void *params)
@@ -1488,7 +1151,11 @@ void first_thread_v2(void *params)
 	lprintf(tch);
 
 	// init tree
+#ifdef OLD_LEAFS
 	init_root2(ftst->node_, &(ftst->leafs_)[ftst->start_pos_leafs]);
+#else
+	init_root2(ftst->node_, (ftst->leafs_)[ftst->start_pos_leafs].x, (ftst->leafs_)[ftst->start_pos_leafs].y);
+#endif // OLD_LEAFS
 
 	unsigned ii = 0;
 	unsigned offset = 0; // offsets_leafs[ii++];
@@ -1612,7 +1279,12 @@ bool find_centers(const struct node *nd, const unsigned count_shapes)
 
 	unsigned j = 0; // count leafs in union
 	unsigned k = 0; // index of shape
+#ifdef OLD_LEAFS
 	br->center[k].pos_leaf = &(br->leafs[0]);
+#else
+	// TO DO LEAFS
+	br->center[k].pos_leaf = 0;
+#endif // OLD_LEAFS
 	//j++;
 	for (unsigned i = 0; i < br->count_leafs; ++i) {
 		if (!br->merge_next_leaf[i]) {
@@ -1620,8 +1292,14 @@ bool find_centers(const struct node *nd, const unsigned count_shapes)
 			tx = 0.0;
 			ty = 0.0;
 			for (unsigned t1 = i - j; t1 <= i; ++t1) {
+#ifdef OLD_LEAFS
 				tx += br->leafs[t1].x;
 				ty += br->leafs[t1].y;
+#else
+				// TO DO LEAFS
+				tx += br->leaf_x[t1];
+				ty += br->leaf_y[t1];
+#endif // OLD_LEAFS
 			}
 			j++;
 			//br->count_merged_pos_leafs[k] = j;
@@ -1636,7 +1314,12 @@ bool find_centers(const struct node *nd, const unsigned count_shapes)
 				break;
 			j = 0;
 			// i++;
+#ifdef OLD_LEAFS
 			br->center[k].pos_leaf = &(br->leafs[i + 1]);
+#else
+			// TO DO LEAFS
+			br->center[k].pos_leaf = i + 1;
+#endif // OLD_LEAFS
 		} else {
 			j++;
 		}
@@ -1768,7 +1451,12 @@ struct node* separate_branches(struct node* nd)
 	struct node *nd1 = (struct node*)malloc(sizeof(struct node) * size_separate);
 	//indexer total_count_br = 0;
 	for (unsigned i = 0; i < size_separate; ++i) {
+#ifdef OLD_LEAFS
 		init_root2(&(nd1[i]), &(((struct branch*)(nd->child_node[0]))->leafs[0]));
+#else
+		// TO DO LEAFS
+		init_root2(&(nd1[i]), ((struct branch*)(nd->child_node[0]))->leaf_x[0], ((struct branch*)(nd->child_node[0]))->leaf_y[0]);
+#endif // OLD_LEAFS
 		// assign branches to node
 		free((struct branch*)nd1[i].child_node[0]);
 		free(nd1[i].child_node);
@@ -1940,11 +1628,16 @@ struct node* separate_nodes(struct node* nd)
 		struct node *nd1 = (struct node*)malloc(sizeof(struct node) * size_separate);
 		indexer total_count_br = 0;
 		for (unsigned i = 0; i < size_separate; ++i) {
+#ifdef OLD_LEAFS
 			struct leaf lf;
 			lf.x = 0.0;
 			lf.y = 0.0;
 			lf.number = 0;
 			init_root2(&(nd1[i]), &lf);
+#else
+			// TO DO LEAFS
+			init_root2(&(nd1[i]), 0.0, 0.0);
+#endif
 			// assign branches to node
 			free((struct branch*)nd1[i].child_node[0]);
 			free(nd1[i].child_node);

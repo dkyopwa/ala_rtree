@@ -5,6 +5,8 @@
 */
 #pragma once
 
+//#define OLD_LEAFS
+
 #ifndef FIRST_H_HEADERS
 #define FIRST_H_HEADERS
 
@@ -41,7 +43,11 @@ struct center_st {
 #endif
 
 struct center_st2 {
+#ifdef OLD_LEAFS
 	struct leaf* pos_leaf;
+#else
+	indexer pos_leaf;
+#endif // OLD_LEAFS
 	//unsigned *count_merged_pos_leafs;
 	coord cx;
 	coord cy;
@@ -68,11 +74,15 @@ struct branch {
 	unsigned count_leafs;
 	unsigned curr_mem_pos;
 	unsigned alloc_mem_times;
+#ifdef OLD_LEAFS
 	struct leaf* leafs;
-	//unsigned *count_merged_leafs; // 0 - not leaf, 1 and more - count of point in the branch
-	// for find center
-	// struct leaf** pos_leaf;
-	//////////// unsigned *count_merged_pos_leafs;
+#else
+	// new version if leafs
+	coord *leaf_x;
+	coord *leaf_y;
+	indexer *leaf_number;
+#endif //OLD_LEAFS
+
 	unsigned count_shapes;
 	/* coord *cx;
 	coord *cy;
@@ -158,21 +168,25 @@ void lprintf(const char *text);
 /// initialization root
 void init_root(const void* p);
 /// initialization root v2
+#ifdef OLD_LEAFS
 void init_root2(struct node *nd, const void* p);
+#else
+void init_root2(struct node *nd, coord x, coord y);
+#endif
 /// deleting root
 void del_root();
 void add_leafs(struct branch *br, struct leaf *lf, unsigned count_of_leafs);
-bool add(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs);
-bool add_leaf_in_boundary(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs);
-bool add_leaf_out_boundary(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs);
-struct node* check_separate(struct node* nd);
+//bool add(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs);
+//bool add_leaf_in_boundary(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs);
+//bool add_leaf_out_boundary(struct node* nd, bool is_leaf, const void* p, unsigned count_of_leafs);
+//struct node* check_separate(struct node* nd);
 struct node* separate(struct node* nd);
 struct node* separate_branches(struct node* nd);
 struct node* separate_nodes(struct node* nd);
 //struct node* separate2(struct node* nd);
 struct node* separate_leafs(struct node* nd, unsigned count_senters_items, unsigned *pos_idx); //_x, unsigned *pos_idx_y, bool separate_by_x);
 bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_leafs, unsigned count_cpus, unsigned count_leafs);
-void first_thread(void *params);
+//void first_thread(void *params);
 #ifndef _WIN
 void* first_thread_v2(void *params);
 #else

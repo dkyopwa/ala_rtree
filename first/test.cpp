@@ -466,7 +466,7 @@ void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	if (idxs) {
 		printf("count = %u\n", count);
 
-		FILE *f2;
+/*		FILE *f2;
 		char name[256];
 		sprintf_s(name, 256, "c:/projects/tmp/1/%s", "test3_res.svg");
 		errno_t t = fopen_s(&f2, name, "w");
@@ -497,6 +497,7 @@ void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 		fprintf(f2, "</svg>");
 		fclose(f2);
+		*/
 	}
 
 	if (idxs)
