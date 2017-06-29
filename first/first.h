@@ -31,10 +31,10 @@ struct leaf {
 #endif
 
 struct center_st {
-	struct leaf** pos_leaf;
+	__declspec(align(16)) struct leaf** pos_leaf;
 	// unsigned *count_merged_pos_leafs;
-	coord *cx;
-	coord *cy;
+	__declspec(align(16)) coord *cx;
+	__declspec(align(16)) coord *cy;
 	unsigned count_shapes;
 #ifndef _WIN
 } __attribute__((aligned(16)));
@@ -63,7 +63,7 @@ struct center_st2 {
 struct center_node_st {
 	coord cx;
 	coord cy;
-	void *pos;
+	__declspec(align(16)) void *pos;
 #ifndef _WIN
 } __attribute__((aligned(16)));
 #else
@@ -78,18 +78,18 @@ struct branch {
 	struct leaf* leafs;
 #else
 	// new version if leafs
-	coord *leaf_x;
-	coord *leaf_y;
-	indexer *leaf_number;
+	__declspec(align(16)) coord *leaf_x;
+	__declspec(align(16)) coord *leaf_y;
+	__declspec(align(16)) indexer *leaf_number;
 #endif //OLD_LEAFS
 
 	unsigned count_shapes;
 	/* coord *cx;
 	coord *cy;
 	*/
-	struct center_st2 *center;
+	__declspec(align(16)) struct center_st2 *center;
 	// end for find center
-	bool *merge_next_leaf;
+	__declspec(align(16)) bool *merge_next_leaf;
 	// boundary, calculate after separate
 	coord x_min;
 	coord y_min;
@@ -98,14 +98,14 @@ struct branch {
 	//struct center_node_st branch_center;
 
 	// length of segments for easier calculating
-	coord *length;
+	__declspec(align(16)) coord *length;
 
 	// boundary of shapes
-	coord *xsh_min;
-	coord *ysh_min;
-	coord *xsh_max;
-	coord *ysh_max;
-	indexer *offset;
+	__declspec(align(16)) coord *xsh_min;
+	__declspec(align(16)) coord *ysh_min;
+	__declspec(align(16)) coord *xsh_max;
+	__declspec(align(16)) coord *ysh_max;
+	__declspec(align(16)) indexer *offset;
 #ifndef _WIN
 } __attribute__((aligned(16)));
 #else
@@ -118,7 +118,7 @@ struct node {
 	coord y1;
 	coord x2;
 	coord y2;
-	void** child_node; // may be node (is_last_node = false) or branch (is_last_node = true)
+	__declspec(align(16)) void** child_node; // may be node (is_last_node = false) or branch (is_last_node = true)
 	unsigned count_child_nodes;
 	bool is_last_node;
 
@@ -130,8 +130,8 @@ struct node {
 #endif
 
 struct first_thr_st {
-	struct node* node_;
-	struct leaf* leafs_;
+	__declspec(align(16)) struct node* node_;
+	__declspec(align(16)) struct leaf* leafs_;
 	unsigned *offsets_leafs_;
 	unsigned count_leaf;
 	unsigned start_pos_leafs;
@@ -202,5 +202,6 @@ indexer* search_in_rect(/*in*/struct node *nd, /*in*/coord x_min, /*in*/coord y_
 indexer search_circle(struct node *nd, coord radius, ret_callback callback, void *arg);
 indexer* search_in_circles(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, /*out*/indexer *count_items);
 indexer search_point(struct node *nd, coord x, coord y, coord radius);
+indexer search_point_sse(struct node *nd, coord x, coord y, coord radius);
 
 #endif //FIRST_H_HEADERS
