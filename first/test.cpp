@@ -44,7 +44,7 @@ int main()
 	lprintf("Hello");
 
 	unsigned count_of_leafs = 0; // old: must to devide 3 without
-	unsigned *offsets_leafs = NULL;
+	__declspec(align(16)) unsigned *offsets_leafs = NULL;
 	unsigned count_shapes = 0;
 	struct leaf* lll = generate(&count_of_leafs, &offsets_leafs, &count_shapes);
 	//lprintf("Done"); _getch();  return 0;
@@ -61,8 +61,8 @@ int main()
 	}
 
 	if (lll)
-		free(lll);
-	free(offsets_leafs);
+		_aligned_free(lll);
+	_aligned_free(offsets_leafs);
 	del_root();
 
 	lprintf("Done");
@@ -75,7 +75,7 @@ int main()
 }
 
 /// generate test data
-struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes)
+__declspec(align(16)) struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes)
 {
 	FILE *f1;
 #ifndef _WIN
@@ -95,11 +95,11 @@ struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count
 	st = fread(&count_leafs, sizeof(unsigned), 1, f1);
 	printf("%u, leafs = %u\n", count1, count_leafs);
 	*count = count_leafs;
-	*offsets_leafs = (unsigned*)malloc(sizeof(unsigned) * count1);
+	*offsets_leafs = (unsigned*)_aligned_malloc(sizeof(unsigned) * count1, 16);
 	*count_shapes = count1;
 
 	// prepare for ramdom number
-	unsigned *numbers = (unsigned*)malloc(sizeof(unsigned) * count1);
+	__declspec(align(16)) unsigned *numbers = (unsigned*)_aligned_malloc(sizeof(unsigned) * count1, 16);
 	unsigned t2 = 0;
 	unsigned total_number = 0;
 	for (unsigned i = 0; i < count1; ++i) {
@@ -116,8 +116,8 @@ struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count
 		numbers[i] = t2;
 	}
 
-	struct leaf* res = NULL;
-	res = (struct leaf*)malloc(sizeof(struct leaf) * count_leafs);
+	__declspec(align(16)) struct leaf* res = NULL;
+	res = (struct leaf*)_aligned_malloc(sizeof(struct leaf) * count_leafs, 16);
 	if (!res)
 		return NULL;
 
@@ -140,7 +140,7 @@ struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count
 	printf("offsets sum = %u\n", t1);
 
 	fclose(f1);
-	free(numbers);
+	_aligned_free(numbers);
 
 	return res;
 	// old variant
@@ -194,10 +194,10 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	const unsigned count = 50000;
 	const coord radius = 100;
 
-	indexer *idxs1 = (indexer*)malloc(sizeof(indexer) * count);
-	indexer *idxs2 = (indexer*)malloc(sizeof(indexer) * count);
-	coord *xx = (coord*)malloc(sizeof(coord) * count);
-	coord *yy = (coord*)malloc(sizeof(coord) * count);
+	__declspec(align(16)) indexer *idxs1 = (indexer*)_aligned_malloc(sizeof(indexer) * count, 16);
+	__declspec(align(16)) indexer *idxs2 = (indexer*)_aligned_malloc(sizeof(indexer) * count, 16);
+	__declspec(align(16)) coord *xx = (coord*)_aligned_malloc(sizeof(coord) * count, 16);
+	__declspec(align(16)) coord *yy = (coord*)_aligned_malloc(sizeof(coord) * count, 16);
 	for (unsigned i = 0; i < count; ++i) {
 		xx[i] = (rand() % ((int)((nd->x2 - nd->x1) * 10))) / 10.0 + nd->x1; // - (nd->x2 - nd->x1) / 2.0;
 		yy[i] = (rand() % ((int)((nd->y2 - nd->y1) * 10))) / 10.0 + nd->y1; //- (nd->y2 - nd->y1) / 2.0;
@@ -270,10 +270,10 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	fprintf(f2, "</svg>");
 	fclose(f2);
 	*/
-	free(xx);
-	free(yy);
-	free(idxs1);
-	free(idxs2);
+	_aligned_free(xx);
+	_aligned_free(yy);
+	_aligned_free(idxs1);
+	_aligned_free(idxs2);
 	/*	for (unsigned i = 0; i < 125; ++i) {
 	free(colors[i]);
 	}
@@ -356,9 +356,9 @@ void find_test2(struct node *nd, const coord *xx, const coord *yy, const unsigne
 
 #else
 	// handler thread
-	uintptr_t *ptr1 = (uintptr_t*)malloc(sizeof(uintptr_t) * cpus);
+	__declspec(align(16)) uintptr_t *ptr1 = (uintptr_t*)_aligned_malloc(sizeof(uintptr_t) * cpus, 16);
 	//unsigned tun[32];
-	struct test_data *data = (struct test_data*)malloc(sizeof(struct test_data) * cpus);
+	__declspec(align(16)) struct test_data *data = (struct test_data*)_aligned_malloc(sizeof(struct test_data) * cpus, 16);
 	//unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (cpus + 1));
 
 	// prepare for separate
@@ -388,8 +388,8 @@ void find_test2(struct node *nd, const coord *xx, const coord *yy, const unsigne
 	}
 
 	//free(idx);
-	free(data);
-	free(ptr1);
+	_aligned_free(data);
+	_aligned_free(ptr1);
 #endif // _WIN
 }
 
@@ -453,12 +453,12 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	}
 
 	if (idxs)
-		free(idxs);
+		_aligned_free(idxs);
 }
 
 void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
-	indexer *idxs = NULL;
+	__declspec(align(16)) indexer *idxs = NULL;
 	indexer count = 0;
 	lprintf("start4");
 	idxs = search_in_circles(nd, 1000, 1000, 500.0, &count);
@@ -501,5 +501,5 @@ void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	}
 
 	if (idxs)
-		free(idxs);
+		_aligned_free(idxs);
 }

@@ -31,6 +31,12 @@ struct points_distanse_sse {
 	__m128 line_p1_y;
 };
 
+__declspec(align(16)) struct vector {
+	float f1;
+	float f2;
+	float f3;
+	float f4;
+};
 // ------------------------------- SERCHIG --------------------------------------
 /* bool search_callback(indexer idx, void *arg)
 {
@@ -121,6 +127,121 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 }
 
 /// calculate distance from point to line
+//coord distance_sse3(struct point *p, struct point *line_p0, struct point *line_p1)
+coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x; vec2 = p0.x, p0.y, p0.x, p0.y
+{
+	__m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
+	__m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx(t1(c1)), 4 - wy(t2(c1))
+	__m128 res3 = _mm_movelh_ps(res1, res1); // vx, vy, vx, vy
+	__m128 res4 = _mm_sub_ps(res2, *vec1); // t1(c2), t2(c2), 0(unk), 0(unk)
+	__m128 res5 = _mm_mul_ps(res3, res1); // vx*vx, vy*vy, wx*vx, wy*vy
+	__m128 res8 = _mm_shuffle_ps(res1, res4, 78); // for sqrt: t1(c1), t2(c1), t1(c2), t2(c2)
+	__m128 res6 = _mm_shuffle_ps(res5, res5, 245); // vy*vy, vy*vy, wy*wy, wy*wy
+	__m128 res9 = _mm_mul_ps(res8, res8); // for sqrt: t1(c1)^2, t2(c1)^2, t1(c2)^2, t2(c2)^2
+	__m128 res7 = _mm_add_ps(res5, res6); // c1, unk, c2, unk
+	__m128 res10 = _mm_shuffle_ps(res9, res9, 245); // t2(c1)^2, t2(c1)^2, t2(c2)^2, t2(c2)^2
+	__m128 res11 = _mm_add_ps(res9, res10); // t1 * t1 + t2 * t2 (c1), unk, t1 * t1 + t2 * t2 (c2), unk
+	__m128 res12 = _mm_sqrt_ps(res11); // sqrt(c1), unk, sqrt(c2), unk
+
+	if (*(float*)&res7 <= 0) {
+		return *(float*)&res12;
+	}
+
+	if (((float*)&res7)[2] <= *(float*)&res7) {
+		return ((float*)&res12)[2];
+	}
+
+	//coord b = c1 / c2;
+	coord b = *(float*)&res7 / ((float*)&res7)[2];
+	__m128 bb = _mm_set1_ps(b);
+	//pbx = line_p0->x + b * vx;
+	//pby = line_p0->y + b * vy;
+	res9 = _mm_mul_ps(bb, res1); // vx * b, vy * b, unk, unk
+	res10 = _mm_add_ps(*vec2, res9); // pbx, pby, unk, unk
+
+	//coord t1 = p->x - pbx;
+	//coord t2 = p->y - pby;
+	res11 = _mm_sub_ps(res2, res10); // t1, t2, unk, unk
+	res12 = _mm_mul_ps(res11, res11); // t1^2, t2^2, unk, unk
+	/* __m128 res13 = _mm_shuffle_ps(res12, res12, 225);
+	__m128 res14 = _mm_add_ps(res13, res12);
+	__m128 res15 = _mm_sqrt_ss(res14);
+	//return sqrt(t1 * t1 + t2 * t2);
+	return *(float*)&res15; */
+	return sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+}
+
+/// calculate distance from point to line
+//coord distance_sse2(struct point *p, struct point *line_p0, struct point *line_p1)
+coord distance_sse_v2(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x; vec2 = p0.x, p0.y, p0.x, p0.y
+{
+	//coord vx, vy, wx, wy, c1, c2, b, pbx, pby;
+
+	__m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx, 4 - wy
+	__m128 tt1 = _mm_movehl_ps(res1, res1); // wx, wy, wx, wy
+	__m128 res2 = _mm_mul_ps(res1, tt1); // c1.1, c1.2, ret_c1 t1*t1, ret_c1 t2*t2
+
+/*	vx = line_p1->x - line_p0->x;
+	vy = line_p1->y - line_p0->y;
+	wx = p->x - line_p0->x;
+	wy = p->y - line_p0->y;
+	c1 = vx * wx + vy * wy;
+*/
+	__m128 res3 = _mm_shuffle_ps(res2, res2, 177); // c1.2, c1.1, ret_c1 t2*t2, ret_c1 t1*t1
+	__m128 res4 = _mm_add_ps(res2, res3); // c1, c1, for sqrt, for sqrt
+
+	//if (c1 <= 0) {
+	if ((*((float*)&res4)) <= 0) {
+		//coord t1 = p->x - line_p0->x;
+		//coord t2 = p->y - line_p0->y;
+/*		coord t1 = wx;
+		coord t2 = wy;
+		return sqrt(t1 * t1 + t2 * t2); */
+		return sqrt(((float*)&res4)[3]);
+	}
+
+	//c2 = vx * vx + vy * vy;
+	__m128 res5 = _mm_mul_ps(res1, res1); // vx^2, vy^2, unk, unk
+	__m128 res51 = _mm_shuffle_ps(res5, res5, 225); // vy^2, vx^2, unk, unk
+	__m128 res52 = _mm_add_ss(res5, res51); // c2, unk, unk, unk
+	//__m128 res6 = _mm_setzero_ps();
+	__m128 res6 = _mm_shuffle_ps(*vec1, *vec1, 78); // p.x, p.y, p1.x, p1.y
+	//if (c2 <= c1) {
+	if (*((float*)&res52) <= *((float*)&res4)) {
+		//coord t1 = p->x - line_p1->x;
+		//coord t2 = p->y - line_p1->y;
+		//res6 = _mm_shuffle_ps(*vec1, *vec1, 78); // p.x, p.y, p1.x, p1.y
+		__m128 res7 = _mm_sub_ps(res6, res1); // t1, t2, unk, unk
+		__m128 res8 = _mm_mul_ps(res7, res7);
+		/*__m128 res81 = _mm_shuffle_ps(res7, res7, 225);
+		__m128 res82 = _mm_add_ss(res8, res81); */
+		//return sqrt(t1 * t1 + t2 * t2);
+		return sqrt(*((float*)&res8) + ((float*)&res8)[1]);
+		/*__m128 res83 = _mm_sqrt_ss(res82);
+		return *(float*)&res83; */
+	}
+
+	//coord b = c1 / c2;
+	coord b = *((float*)&res4) / *((float*)&res52);
+	__m128 bb = _mm_set1_ps(b);
+	//pbx = line_p0->x + b * vx;
+	//pby = line_p0->y + b * vy;
+	__m128 res9 = _mm_mul_ps(bb, res1); // vx * b, vy * b, unk, unk
+	__m128 res10 = _mm_add_ps(*vec2, res9); // pbx, pby, unk, unk
+
+	//coord t1 = p->x - pbx;
+	//coord t2 = p->y - pby;
+	__m128 res11 = _mm_sub_ps(res6, res10); // t1, t2, unk, unk
+	__m128 res12 = _mm_mul_ps(res11, res11); // t1^2, t2^2, unk, unk
+	/* __m128 res13 = _mm_shuffle_ps(res12, res12, 225);
+	__m128 res14 = _mm_add_ps(res13, res12);
+	__m128 res15 = _mm_sqrt_ss(res14);
+	//return sqrt(t1 * t1 + t2 * t2);
+	return *(float*)&res15; */
+	return sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+}
+
+/// calculate distance from point to line
 __m128 distance_sse(points_distanse_sse *data)
 {
 	__m128 vx, vy, wx, wy, c1, c2, b, pbx, pby;
@@ -149,11 +270,15 @@ __m128 distance_sse(points_distanse_sse *data)
 	///t1 = _mm_sub_ps(data->point_x, data->line_p0_x);
 	///t2 = _mm_sub_ps(data->point_y, data->line_p0_y);
 	///result = _mm_rsqrt_ps(_mm_add_ps(_mm_mul_ps(t1, t1), _mm_mul_ps(t2, t2)));
-	result = _mm_rsqrt_ps(_mm_add_ps(_mm_mul_ps(wx, wx), _mm_mul_ps(wy, wy)));
-	float *temp1 = reinterpret_cast<float*>(&res_c1);
+	result = _mm_sqrt_ps(_mm_add_ps(_mm_mul_ps(wx, wx), _mm_mul_ps(wy, wy)));
+	unsigned *temp1 = reinterpret_cast<unsigned*>(&res_c1);
 	if (temp1[0] && temp1[1] && temp1[2] && temp1[3]) {
 		return result;
 	}
+	
+/*	if (*temp1 && *(temp1 + 1) && *(temp1 + 2) && *(temp1 + 3)) {
+		return result;
+	} */
 
 	/*c2 = vx * vx + vy * vy;
 	if (c2 <= c1) {
@@ -166,9 +291,9 @@ __m128 distance_sse(points_distanse_sse *data)
 	c2 = _mm_add_ps(_mm_mul_ps(vx, vx), _mm_mul_ps(vy, vy));
 	t1 = _mm_sub_ps(data->point_x, data->line_p1_x);
 	t2 = _mm_sub_ps(data->point_y, data->line_p1_y);
-	__m128 result2 = _mm_rsqrt_ps(_mm_add_ps(_mm_mul_ps(t1, t1), _mm_mul_ps(t2, t2)));
+	__m128 result2 = _mm_sqrt_ps(_mm_add_ps(_mm_mul_ps(t1, t1), _mm_mul_ps(t2, t2)));
 	__m128 res_c2 = _mm_cmple_ps(c2, c1);
-	float *temp2 = reinterpret_cast<float*>(&res_c2);
+	unsigned *temp2 = reinterpret_cast<unsigned*>(&res_c2);
 
 	//b = c1 / c2;
 	b = _mm_div_ps(c1, c2);
@@ -183,8 +308,15 @@ __m128 distance_sse(points_distanse_sse *data)
 	//coord t2 = p->y - pby;
 	t2 = _mm_sub_ps(data->point_y, pby);
 	//return sqrt(t1 * t1 + t2 * t2);
-	__m128 result3 = _mm_rsqrt_ps(_mm_add_ps(_mm_mul_ps(t1, t1), _mm_mul_ps(t2, t2)));
+	__m128 result3 = _mm_sqrt_ps(_mm_add_ps(_mm_mul_ps(t1, t1), _mm_mul_ps(t2, t2)));
 
+/*	unsigned w1[2]; w1[0] = 0, w1[1] = 1;
+	if (w1[1])
+		if (w1[0])
+			w1[0] = w1[1];
+		else
+			w1[1] = w1[0];
+*/
 	if (!temp1[0]) {
 		if (temp2[0])
 			((float*)&result)[0] = ((float*)&result2)[0];
@@ -220,7 +352,7 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 	unsigned temp_counter1 = 0, temp_counter2 = 0;
 #endif
 
-	__m128 px = _mm_set1_ps(5.0);
+/*	__m128 px = _mm_set1_ps(5.0);
 	__m128 py = _mm_set1_ps(5.0);
 	__m128 line0_x = { 1.0f, 3.0f, 5.0f, 10.0f };
 	__m128 line0_y = { 2.0f, 2.0f, 2.0f, 2.0f };
@@ -250,10 +382,31 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 		res2[i] = distance(&p, &(p1[i]), &(p2[i]));
 	}
 	__int64 t4 = __rdtsc();
+
+	float res3[4];
+	__int64 t5 = __rdtsc();
+	for (unsigned i = 0; i < 4; ++i) {
+		__m128 vec1, vec2;
+		//((float*)&vec1)[0] = p2[i].x;
+		//((float*)&vec1)[1] = p2[i].y;
+		//((float*)&vec1)[2] = p.x;
+		//((float*)&vec1)[3] = p.y;
+		//((float*)&vec2)[0] = p1[i].x;
+		//((float*)&vec2)[1] = p1[i].y;
+		//((float*)&vec2)[2] = p1[i].x;
+		//((float*)&vec2)[3] = p1[i].y;
+		
+		vec1 = _mm_setr_ps(p2[i].x, p2[i].y, p.x, p.y);
+		vec2 = _mm_setr_ps(p1[i].x, p1[i].y, p1[i].x, p1[i].y);
+		res3[i] = distance_sse_v2(&vec1, &vec2);
+	}
+	__int64 t6 = __rdtsc();
+
 	t1 = t2 - t1;
 	t3 = t4 - t3;
+	t5 = t6 - t5;
 	return -1;
-
+*/
 	//const size_t mem_size = 64;
 	//unsigned mem_offset = 1;
 	//struct node **stack_node = (struct node**)malloc(sizeof(struct node*) * mem_size * mem_offset);
@@ -314,7 +467,7 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 									// find minimal distance
 									if (br->merge_next_leaf[k]) {
 										// line
-										struct point p, line_p0, line_p1;
+										/*struct point p, line_p0, line_p1;
 										p.x = x;
 										p.y = y;
 										// TO DO LEAFS
@@ -323,6 +476,13 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 										line_p1.x = br->leaf_x[k + 1];
 										line_p1.y = br->leaf_y[k + 1];
 										dist = distance(&p, &line_p0, &line_p1);
+										*/
+										struct vector v1, v2;
+										v1.f1 = br->leaf_x[k + 1]; v1.f2 = br->leaf_y[k + 1]; v1.f3 = x; v1.f4 = y;
+										v2.f1 = br->leaf_x[k]; v2.f2 = br->leaf_y[k]; v2.f3 = br->leaf_x[k]; v2.f4 = br->leaf_y[k];
+										__m128 vec1 = _mm_load_ps((const float*)&v1); // _mm_setr_ps(br->leaf_x[k + 1], br->leaf_y[k + 1], x, y);
+										__m128 vec2 = _mm_load_ps((const float*)&v2); // _mm_setr_ps(br->leaf_x[k], br->leaf_y[k], br->leaf_x[k], br->leaf_y[k]);
+										dist = distance_sse_v3(&vec1, &vec2);
 									}
 									else {
 										// point
@@ -419,8 +579,9 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 #ifdef MINIMAL_DEBUG
 	unsigned temp_counter1 = 0, temp_counter2 = 0;
 #endif
-	search_point_sse(nd, x, y, radius);
+	return search_point_sse(nd, x, y, radius);
 	return -1;
+
 	//const size_t mem_size = 64;
 	//unsigned mem_offset = 1;
 	//struct node **stack_node = (struct node**)malloc(sizeof(struct node*) * mem_size * mem_offset);
