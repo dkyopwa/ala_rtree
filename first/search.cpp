@@ -12,6 +12,8 @@
 //#define FIND_V2
 // FIND_V2 on the test_data not found hi performance
 
+extern "C" int distance_sse_v4(__m128 *vec1, __m128 *vec2);
+
 struct t_result {
 	coord dist;
 	indexer idx;
@@ -130,11 +132,12 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 //coord distance_sse3(struct point *p, struct point *line_p0, struct point *line_p1)
 coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x; vec2 = p0.x, p0.y, p0.x, p0.y
 {
-	__m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
-	__m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx(t1(c1)), 4 - wy(t2(c1))
+	coord t1 = distance_sse_v4(vec1, vec2);
+	register __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
+	register __m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx(t1(c1)), 4 - wy(t2(c1))
 	__m128 res3 = _mm_movelh_ps(res1, res1); // vx, vy, vx, vy
-	__m128 res4 = _mm_sub_ps(res2, *vec1); // t1(c2), t2(c2), 0(unk), 0(unk)
-	__m128 res5 = _mm_mul_ps(res3, res1); // vx*vx, vy*vy, wx*vx, wy*vy
+	register __m128 res4 = _mm_sub_ps(res2, *vec1); // t1(c2), t2(c2), 0(unk), 0(unk)
+	register __m128 res5 = _mm_mul_ps(res3, res1); // vx*vx, vy*vy, wx*vx, wy*vy
 	__m128 res8 = _mm_shuffle_ps(res1, res4, 78); // for sqrt: t1(c1), t2(c1), t1(c2), t2(c2)
 	__m128 res6 = _mm_shuffle_ps(res5, res5, 245); // vy*vy, vy*vy, wy*wy, wy*wy
 	__m128 res9 = _mm_mul_ps(res8, res8); // for sqrt: t1(c1)^2, t2(c1)^2, t1(c2)^2, t2(c2)^2
@@ -580,7 +583,7 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 	unsigned temp_counter1 = 0, temp_counter2 = 0;
 #endif
 	return search_point_sse(nd, x, y, radius);
-	return -1;
+//	return -1;
 
 	//const size_t mem_size = 64;
 	//unsigned mem_offset = 1;

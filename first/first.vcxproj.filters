@@ -43,4 +43,9 @@
     <Text Include="Text.txt" />
     <Text Include="LICENSE" />
   </ItemGroup>
+  <ItemGroup>
+    <MASM Include="calc.asm">
+      <Filter>Файлы исходного кода</Filter>
+    </MASM>
+  </ItemGroup>
 </Project>

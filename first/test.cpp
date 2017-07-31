@@ -191,7 +191,7 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	}
 	}
 	*/
-	const unsigned count = 50000;
+	const unsigned count = 100000;
 	const coord radius = 100;
 
 	__declspec(align(16)) indexer *idxs1 = (indexer*)_aligned_malloc(sizeof(indexer) * count, 16);
