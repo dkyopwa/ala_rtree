@@ -171,7 +171,8 @@ coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 	__m128 res15 = _mm_sqrt_ss(res14);
 	//return sqrt(t1 * t1 + t2 * t2);
 	return *(float*)&res15; */
-	return sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	coord t2 = sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	return t2;
 }
 
 /// calculate distance from point to line

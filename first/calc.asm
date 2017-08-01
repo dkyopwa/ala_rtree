@@ -1,8 +1,18 @@
 ;
 
 .data
-res12	dq	0
-res12_	dq	0
+res12		dd		0
+res12_1		dd		0
+res12_2		dd		0
+res12_3		dd		0
+res7		dd		0
+res7_1		dd		0
+res7_2		dd		0
+res7_3		dd		0
+res2		dd		0
+res2_1		dd		0
+res2_2		dd		0
+res2_3		dd		0
 
 .code
 distance_sse_v4 proc
@@ -29,13 +39,15 @@ distance_sse_v4 proc
 	; __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
 	movaps		xmm2,xmm0
 	movhlps     xmm2,xmm0	; xmm2 = res2
+	movaps		xmmword ptr [res2],xmm2	; store res2 => rax = res2
 
 	; 	__m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx(t1(c1)), 4 - wy(t2(c1))
 	movaps		xmm3,xmm0
 	subps       xmm3,xmm1	; xmm3 = res1
+	movaps		xmm7,xmm3	; store res1 => mxx7 = res1
 
 	; 	__m128 res3 = _mm_movelh_ps(res1, res1); // vx, vy, vx, vy
-	movaps		xmm4,xmm3
+	movaps		xmm4,xmm3	; store res1
 	movlhps     xmm4,xmm4	; xmm4 = res3
 
 	; __m128 res4 = _mm_sub_ps(res2, *vec1); // t1(c2), t2(c2), 0(unk), 0(unk)
@@ -45,7 +57,7 @@ distance_sse_v4 proc
 	mulps       xmm4,xmm3	; xmm4 (res3) = res5
 
 	; __m128 res8 = _mm_shuffle_ps(res1, res4, 78); // for sqrt: t1(c1), t2(c1), t1(c2), t2(c2)
-	shufps      xmm3,xmm2,4Eh	; xmm3 = res8
+	shufps      xmm3,xmm2,4Eh	; xmm3 (res1) = res8
 
 	; __m128 res6 = _mm_shuffle_ps(res5, res5, 245); // vy*vy, vy*vy, wy*wy, wy*wy
 	movaps		xmm5,xmm4
@@ -56,6 +68,7 @@ distance_sse_v4 proc
 
 	; __m128 res7 = _mm_add_ps(res5, res6); // c1, unk, c2, unk
 	addps       xmm4,xmm5	; xmm4 (res5) = res7
+	movaps      xmmword ptr [res7],xmm4
 
 	; __m128 res10 = _mm_shuffle_ps(res9, res9, 245); // t2(c1)^2, t2(c1)^2, t2(c2)^2, t2(c2)^2
 	movaps		xmm6,xmm3
@@ -68,7 +81,60 @@ distance_sse_v4 proc
 	sqrtps      xmm3,xmm3
 	movaps      xmmword ptr [res12],xmm3
 
-	mov			rax,0FFFFFFFFh ; result return
+	; if (*(float*)&res7 <= 0) {
+	xorps       xmm0,xmm0  
+	comiss      xmm0,dword ptr [res7]
+	jnb			next1
+	; return ((float*)&res12)[2];
+	mov			eax, dword ptr [res12_2]
+	jmp			end_func
+
+next1:
+
+	; if (((float*)&res7)[2] <= *(float*)&res7) {
+	movss       xmm0,dword ptr [res7]  
+	comiss      xmm0,dword ptr [res7_2]  
+	jnb          next2
+		; return ((float*)&res12)[2];
+	mov       eax,dword ptr [res12_2]  
+	jmp         end_func
+
+next2:
+	; //coord b = c1 / c2;
+	; coord b = *(float*)&res7 / ((float*)&res7)[2];
+	divss       xmm4,dword ptr [res7_2]	; xmm4 (res7) = b
+
+	;__m128 bb = _mm_set1_ps(b);
+	shufps      xmm4,xmm4,0		; xmm4 (b) = xmm4 bb (b, b, b, b)
+
+	; //pbx = line_p0->x + b * vx;
+	; //pby = line_p0->y + b * vy;
+	; res9 = _mm_mul_ps(bb, res1); // vx * b, vy * b, unk, unk
+	mulps       xmm4,xmm7	; xmm4 = res9
+
+	; res10 = _mm_add_ps(*vec2, res9); // pbx, pby, unk, unk
+	movaps      xmm5,xmmword ptr [res2]	; for next step
+	addps       xmm9,xmm1	; xmm9 = res10
+
+	; 	//coord t1 = p->x - pbx;
+	; //coord t2 = p->y - pby;
+	; res11 = _mm_sub_ps(res2, res10); // t1, t2, unk, unk
+	subps       xmm5,xmm9
+	; res12 = _mm_mul_ps(res11, res11); // t1^2, t2^2, unk, unk
+	mulps       xmm5,xmm5
+	movaps      xmmword ptr [res12],xmm5	; xmm5 = res12
+
+	; 	return sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	addss       xmm5,dword ptr [res12_1]
+	sqrtss		xmm5,xmm5
+	movaps		xmmword ptr [res12],xmm5
+
+
+
+	mov			eax,dword ptr[res12] ; result return
+
+	
+end_func:
 
 	; end function
 	movdqu      xmmword ptr [rsp+20h],xmm0  
@@ -81,7 +147,9 @@ distance_sse_v4 proc
 ;	call        __security_check_cookie (07FF62D7D13CAh)  
 	lea         rsp,[rbp+808h]  
 	pop         rdi  
-	pop         rbp  
+	pop         rbp
+	
+  
 	ret
 distance_sse_v4 endp
 end
