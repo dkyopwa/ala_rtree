@@ -134,6 +134,9 @@ coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 {
 	coord t1 = distance_sse_v4(vec1, vec2);
 	register __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
+	coord q1 = ((float*)&res2)[0];
+	coord q2 = ((float*)&res2)[1];
+	coord q3 = q1 + q2;
 	register __m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx(t1(c1)), 4 - wy(t2(c1))
 	__m128 res3 = _mm_movelh_ps(res1, res1); // vx, vy, vx, vy
 	register __m128 res4 = _mm_sub_ps(res2, *vec1); // t1(c2), t2(c2), 0(unk), 0(unk)

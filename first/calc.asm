@@ -5,14 +5,21 @@ res12		dd		0
 res12_1		dd		0
 res12_2		dd		0
 res12_3		dd		0
+
 res7		dd		0
 res7_1		dd		0
 res7_2		dd		0
 res7_3		dd		0
+
 res2		dd		0
 res2_1		dd		0
 res2_2		dd		0
 res2_3		dd		0
+
+tmp			dd		0
+tmp_1		dd		0
+tmp_2		dd		0
+tmp_3		dd		0
 
 .code
 distance_sse_v4 proc
@@ -39,7 +46,7 @@ distance_sse_v4 proc
 	; __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
 	movaps		xmm2,xmm0
 	movhlps     xmm2,xmm0	; xmm2 = res2
-	movaps		xmmword ptr [res2],xmm2	; store res2 => rax = res2
+	movaps		xmmword ptr [res2],xmm2	; store res2 = res2
 
 	; 	__m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx(t1(c1)), 4 - wy(t2(c1))
 	movaps		xmm3,xmm0
@@ -51,7 +58,7 @@ distance_sse_v4 proc
 	movlhps     xmm4,xmm4	; xmm4 = res3
 
 	; __m128 res4 = _mm_sub_ps(res2, *vec1); // t1(c2), t2(c2), 0(unk), 0(unk)
-	subps       xmm2,xmm1	; xmm2 (res2) = res4
+	subps       xmm2,xmm0	; xmm2 (res2) = res4
 
 	; __m128 res5 = _mm_mul_ps(res3, res1); // vx*vx, vy*vy, wx*vx, wy*vy
 	mulps       xmm4,xmm3	; xmm4 (res3) = res5
@@ -82,9 +89,11 @@ distance_sse_v4 proc
 	movaps      xmmword ptr [res12],xmm3
 
 	; if (*(float*)&res7 <= 0) {
+	; if (0 > *(float*)&res7) than go to next step
 	xorps       xmm0,xmm0  
 	comiss      xmm0,dword ptr [res7]
-	jnb			next1
+	;jnb			next1
+	jb			next1
 	; return ((float*)&res12)[2];
 	mov			eax, dword ptr [res12_2]
 	jmp			end_func
@@ -94,7 +103,8 @@ next1:
 	; if (((float*)&res7)[2] <= *(float*)&res7) {
 	movss       xmm0,dword ptr [res7]  
 	comiss      xmm0,dword ptr [res7_2]  
-	jnb          next2
+	;jnb          next2
+	jb			next2
 		; return ((float*)&res12)[2];
 	mov       eax,dword ptr [res12_2]  
 	jmp         end_func
@@ -114,12 +124,12 @@ next2:
 
 	; res10 = _mm_add_ps(*vec2, res9); // pbx, pby, unk, unk
 	movaps      xmm5,xmmword ptr [res2]	; for next step
-	addps       xmm9,xmm1	; xmm9 = res10
+	addps       xmm4,xmm1	; xmm4 = res10
 
 	; 	//coord t1 = p->x - pbx;
 	; //coord t2 = p->y - pby;
 	; res11 = _mm_sub_ps(res2, res10); // t1, t2, unk, unk
-	subps       xmm5,xmm9
+	subps       xmm5,xmm4		; xmm5 = res11
 	; res12 = _mm_mul_ps(res11, res11); // t1^2, t2^2, unk, unk
 	mulps       xmm5,xmm5
 	movaps      xmmword ptr [res12],xmm5	; xmm5 = res12
@@ -127,11 +137,13 @@ next2:
 	; 	return sqrt(*((float*)&res12) + ((float*)&res12)[1]);
 	addss       xmm5,dword ptr [res12_1]
 	sqrtss		xmm5,xmm5
+
+	; prepare for return
+	cvtss2sd	xmm5,xmm5
 	movaps		xmmword ptr [res12],xmm5
 
-
-
-	mov			eax,dword ptr[res12] ; result return
+	mov			rax,qword ptr[res12] ; result return
+	;movlps		xmm5,eax
 
 	
 end_func:
