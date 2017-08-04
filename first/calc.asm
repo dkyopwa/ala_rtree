@@ -28,20 +28,20 @@ distance_sse_v4 proc
 	movaps		xmm1, xmmword ptr [rdx]	; xmm1 = vec2
 
 	; start funstion and load params
-	mov         qword ptr [rsp+10h],rdx  
-	mov         qword ptr [rsp+8],rcx  
-	push        rbp  
-	push        rdi  
-	sub         rsp,838h  
-	lea         rbp,[rsp+30h]  
-	mov         rdi,rsp  
-	mov         ecx,20Eh  
-	mov         eax,0CCCCCCCCh  
-	rep stos    dword ptr [rdi]  
-	mov         rcx,qword ptr [rsp+858h]  
-;	mov         rax,qword ptr [__security_cookie (07FF62D7EB010h)]  
-	xor         rax,rbp  
-	mov         qword ptr [rbp+7F8h],rax
+;	mov         qword ptr [rsp+10h],rdx  
+;	mov         qword ptr [rsp+8],rcx  
+;	push        rbp  
+;	push        rdi  
+;	sub         rsp,838h  
+;	lea         rbp,[rsp+30h]  
+;	mov         rdi,rsp  
+;	mov         ecx,20Eh  
+;	mov         eax,0CCCCCCCCh  
+;	rep stos    dword ptr [rdi]  
+;	mov         rcx,qword ptr [rsp+858h]  
+;;	mov         rax,qword ptr [__security_cookie (07FF62D7EB010h)]  
+;	xor         rax,rbp  
+;	mov         qword ptr [rbp+7F8h],rax
 
 	; __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
 	movaps		xmm2,xmm0
@@ -85,7 +85,7 @@ distance_sse_v4 proc
 	addps       xmm3,xmm6	; xmm3 = res11
 
 	; __m128 res12 = _mm_sqrt_ps(res11); // sqrt(c1), unk, sqrt(c2), unk
-	sqrtps      xmm3,xmm3
+	sqrtps      xmm3,xmm3			; xmm3 = res12
 	movaps      xmmword ptr [res12],xmm3
 
 	; if (*(float*)&res7 <= 0) {
@@ -94,8 +94,10 @@ distance_sse_v4 proc
 	comiss      xmm0,dword ptr [res7]
 	;jnb			next1
 	jb			next1
-	; return ((float*)&res12)[2];
-	mov			eax, dword ptr [res12_2]
+	; return ((float*)&res12);
+	;mov			eax, dword ptr [res12]
+	;movss		xmm0,dword ptr [res12]
+	movss		xmm0,xmm3
 	jmp			end_func
 
 next1:
@@ -106,7 +108,9 @@ next1:
 	;jnb          next2
 	jb			next2
 		; return ((float*)&res12)[2];
-	mov       eax,dword ptr [res12_2]  
+	;mov       eax,dword ptr [res12_2]  
+	shufps		xmm0,xmm3,0E0h
+	shufps		xmm0,xmm0,0E6h
 	jmp         end_func
 
 next2:
@@ -139,27 +143,28 @@ next2:
 	sqrtss		xmm5,xmm5
 
 	; prepare for return
-	cvtss2sd	xmm5,xmm5
-	movaps		xmmword ptr [res12],xmm5
+	;cvtss2sd	xmm5,xmm5
+	;movaps		xmmword ptr [res12],xmm5
 
-	mov			rax,qword ptr[res12] ; result return
-	;movlps		xmm5,eax
+	movss		xmm0,xmm5
+	;movss		dword ptr [res12],xmm5 ; result return
+	;mov			eax,dword ptr [res12]
 
 	
 end_func:
 
 	; end function
-	movdqu      xmmword ptr [rsp+20h],xmm0  
-	lea         rcx,[rbp-30h]  
-;	lea         rdx,[__real@447a0000+74Ch (07FF62D7E8040h)]  
-;	call        _RTC_CheckStackVars (07FF62D7D118Bh)  
-	movdqu      xmm0,xmmword ptr [rsp+20h]  
-	mov         rcx,qword ptr [rbp+7F8h]  
-	xor         rcx,rbp  
-;	call        __security_check_cookie (07FF62D7D13CAh)  
-	lea         rsp,[rbp+808h]  
-	pop         rdi  
-	pop         rbp
+;	movdqu      xmmword ptr [rsp+20h],xmm0  
+;	lea         rcx,[rbp-30h]  
+;;	lea         rdx,[__real@447a0000+74Ch (07FF62D7E8040h)]  
+;;	call        _RTC_CheckStackVars (07FF62D7D118Bh)  
+;	movdqu      xmm0,xmmword ptr [rsp+20h]  
+;	mov         rcx,qword ptr [rbp+7F8h]  
+;	xor         rcx,rbp  
+;;	call        __security_check_cookie (07FF62D7D13CAh)  
+;	lea         rsp,[rbp+808h]  
+;	pop         rdi  
+;	pop         rbp
 	
   
 	ret

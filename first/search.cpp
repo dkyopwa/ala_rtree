@@ -12,7 +12,7 @@
 //#define FIND_V2
 // FIND_V2 on the test_data not found hi performance
 
-extern "C" int distance_sse_v4(__m128 *vec1, __m128 *vec2);
+extern "C" coord distance_sse_v4(__m128 *vec1, __m128 *vec2);
 
 struct t_result {
 	coord dist;
@@ -133,6 +133,7 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x; vec2 = p0.x, p0.y, p0.x, p0.y
 {
 	coord t1 = distance_sse_v4(vec1, vec2);
+	return t1;
 	register __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
 	coord q1 = ((float*)&res2)[0];
 	coord q2 = ((float*)&res2)[1];
