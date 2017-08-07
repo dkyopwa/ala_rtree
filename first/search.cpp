@@ -13,6 +13,7 @@
 // FIND_V2 on the test_data not found hi performance
 
 extern "C" coord distance_sse_v4(__m128 *vec1, __m128 *vec2);
+extern "C" coord distance_sse_v5(__m128 *vec1, __m128 *vec2, __m128 *tmp);
 
 struct t_result {
 	coord dist;
@@ -132,12 +133,18 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 //coord distance_sse3(struct point *p, struct point *line_p0, struct point *line_p1)
 coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x; vec2 = p0.x, p0.y, p0.x, p0.y
 {
-	coord t1 = distance_sse_v4(vec1, vec2);
-	return t1;
+	__m128 tmp[3];
+	tmp[0] = {1.0, 2.0, 3.0, 4.0};
+	tmp[1] = { 1.0, 2.0, 3.0, 4.0 };
+	tmp[2] = { 1.0, 2.0, 3.0, 4.0 };
+	coord t3 = distance_sse_v5(vec1, vec2, tmp);
+
+	//coord t1 = distance_sse_v4(vec1, vec2);
 	register __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
-	coord q1 = ((float*)&res2)[0];
+	/*coord q1 = ((float*)&res2)[0];
 	coord q2 = ((float*)&res2)[1];
 	coord q3 = q1 + q2;
+	*/
 	register __m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx(t1(c1)), 4 - wy(t2(c1))
 	__m128 res3 = _mm_movelh_ps(res1, res1); // vx, vy, vx, vy
 	register __m128 res4 = _mm_sub_ps(res2, *vec1); // t1(c2), t2(c2), 0(unk), 0(unk)
@@ -176,6 +183,8 @@ coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 	//return sqrt(t1 * t1 + t2 * t2);
 	return *(float*)&res15; */
 	coord t2 = sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	if (t3 != t2)
+		return t2;
 	return t2;
 }
 

@@ -314,7 +314,7 @@ void find_test2(struct node *nd, const coord *xx, const coord *yy, const unsigne
 	GetSystemInfo(&sysinfo);
 	cpus = sysinfo.dwNumberOfProcessors;
 #endif
-	//cpus = 1;
+	//cpus = 1; /*!!!!!!!*/
 
 #ifndef _WIN
 	// handler thread
