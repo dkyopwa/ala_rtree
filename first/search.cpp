@@ -14,6 +14,7 @@
 
 extern "C" coord distance_sse_v4(__m128 *vec1, __m128 *vec2);
 extern "C" coord distance_sse_v5(__m128 *vec1, __m128 *vec2, __m128 *tmp);
+extern "C" coord distance_sse_v6(__m128 *vec1, __m128 *vec2);
 
 struct t_result {
 	coord dist;
@@ -214,7 +215,11 @@ coord distance_sse_v2(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 /*		coord t1 = wx;
 		coord t2 = wy;
 		return sqrt(t1 * t1 + t2 * t2); */
-		return sqrt(((float*)&res4)[3]);
+		coord t1 = sqrt(((float*)&res4)[3]);
+	/*	coord t2 = distance_sse_v6(vec1, vec2);
+		if (t1 != t2)
+			return t1;*/
+		return t1;
 	}
 
 	//c2 = vx * vx + vy * vy;
@@ -233,7 +238,11 @@ coord distance_sse_v2(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 		/*__m128 res81 = _mm_shuffle_ps(res7, res7, 225);
 		__m128 res82 = _mm_add_ss(res8, res81); */
 		//return sqrt(t1 * t1 + t2 * t2);
-		return sqrt(*((float*)&res8) + ((float*)&res8)[1]);
+		coord t1 = sqrt(*((float*)&res8) + ((float*)&res8)[1]);
+	/*	coord t2 = distance_sse_v6(vec1, vec2);
+		if (t1 != t2)
+			return t1;*/
+		return t1;
 		/*__m128 res83 = _mm_sqrt_ss(res82);
 		return *(float*)&res83; */
 	}
@@ -255,7 +264,12 @@ coord distance_sse_v2(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 	__m128 res15 = _mm_sqrt_ss(res14);
 	//return sqrt(t1 * t1 + t2 * t2);
 	return *(float*)&res15; */
-	return sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	coord t1 = sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+/*	coord t2 = distance_sse_v6(vec1, vec2);
+	if (t1 != t2)
+		return t1;*/
+
+	return t1;
 }
 
 /// calculate distance from point to line
@@ -499,7 +513,7 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 										v2.f1 = br->leaf_x[k]; v2.f2 = br->leaf_y[k]; v2.f3 = br->leaf_x[k]; v2.f4 = br->leaf_y[k];
 										__m128 vec1 = _mm_load_ps((const float*)&v1); // _mm_setr_ps(br->leaf_x[k + 1], br->leaf_y[k + 1], x, y);
 										__m128 vec2 = _mm_load_ps((const float*)&v2); // _mm_setr_ps(br->leaf_x[k], br->leaf_y[k], br->leaf_x[k], br->leaf_y[k]);
-										dist = distance_sse_v3(&vec1, &vec2);
+										dist = distance_sse_v6(&vec1, &vec2);
 									}
 									else {
 										// point

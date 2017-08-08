@@ -22,7 +22,7 @@ tmp_2		dd		0
 tmp_3		dd		0
 
 .code
-; !!! --- current function is only for one thread --- !!!
+; !!! --- current function is only for one thread (distance_sse_v3) --- !!!
 distance_sse_v4 proc
 	; load parameters
 	movaps      xmm0, xmmword ptr [rcx]	; xmm0 = vec1
@@ -173,7 +173,7 @@ distance_sse_v4 endp
 
 
 ; --------------------------------------------------------------------------------------
-; fuctions calculate distance for multithreads
+; fuctions calculate distance for multithreads (distance_sse_v3)
 distance_sse_v5 proc
 	; load parameters
 	movaps      xmm0, xmmword ptr [rcx]	; xmm0 = vec1
@@ -301,5 +301,102 @@ end_func:
 	ret
 
 distance_sse_v5 endp
+
+
+; --------------------------------------------------------------------------------------
+; fuctions calculate distance  (distance_sse_v2)
+distance_sse_v6 proc
+	; load parameters
+	movaps      xmm0, xmmword ptr [rcx]	; xmm0 (xmm2) = vec1
+	movaps		xmm1, xmmword ptr [rdx]	; xmm1 = vec2
+
+	movaps		xmm2, xmm0			; copy for other steps xmm2 = vec1
+	; __m128 res1 = _mm_sub_ps(*vec1, *vec2); // where 1 - vx, 2 - vy, 3 - wx, 4 - wy
+	subps		xmm0, xmm1			; xmm0 = res1
+
+	; __m128 tt1 = _mm_movehl_ps(res1, res1); // wx, wy, wx, wy
+	movaps		xmm3, xmm0
+	movhlps		xmm3, xmm3			; xmm3 = tt1
+
+	; __m128 res2 = _mm_mul_ps(res1, tt1); // c1.1, c1.2, ret_c1 t1*t1, ret_c1 t2*t2
+	mulps		xmm3, xmm0			; xmm3 = res2
+
+	; __m128 res3 = _mm_shuffle_ps(res2, res2, 177); // c1.2, c1.1, ret_c1 t2*t2, ret_c1 t1*t1
+	movaps		xmm4, xmm3
+	shufps      xmm4, xmm4, 0B1h	; xmm4 = res3
+
+	;__m128 res4 = _mm_add_ps(res2, res3); // c1, c1, for sqrt, for sqrt
+	addps		xmm4, xmm3			; free xmm3, xmm4 = res4
+
+	; if ((*((float*)&res4)) <= 0) {
+	xorps		xmm3, xmm3			; xmm3 = 0
+	comiss		xmm3, xmm4
+	jb			next1
+	; return sqrt(((float*)&res4)[3]);
+	shufps		xmm4, xmm4, 0E7h
+	sqrtss		xmm0, xmm4
+	; movaps		xmm0, xmm4
+	jmp			end_func
+
+next1:
+
+	; __m128 res5 = _mm_mul_ps(res1, res1); // vx^2, vy^2, unk, unk
+	movaps		xmm3, xmm0
+	mulps		xmm3, xmm3			; xmm3 = res5
+
+	; __m128 res51 = _mm_shuffle_ps(res5, res5, 225); // vy^2, vx^2, unk, unk
+	movaps		xmm5, xmm3			; xmm5 = res5
+	shufps		xmm3, xmm3, 0E1h	; xmm3 = res51
+
+	; __m128 res52 = _mm_add_ss(res5, res51); // c2, unk, unk, unk
+	addss		xmm3, xmm5			; free xmm5; xmm3 = res52
+
+	; __m128 res6 = _mm_shuffle_ps(*vec1, *vec1, 78); // p.x, p.y, p1.x, p1.y
+	shufps		xmm2, xmm2, 4Eh		; xmm2 = res6
+
+	; if (*((float*)&res52) <= *((float*)&res4)) {
+	comiss		xmm4, xmm3
+	jb			next2
+	; __m128 res7 = _mm_sub_ps(res6, res1); // t1, t2, unk, unk
+	subps		xmm2, xmm0			; xmm2 = res7
+	; __m128 res8 = _mm_mul_ps(res7, res7);
+	mulps		xmm2, xmm2
+	; return sqrt(*((float*)&res8) + ((float*)&res8)[1]);
+	movaps		xmm0, xmm2
+	shufps		xmm2, xmm2, 0E1h
+	addss		xmm0, xmm2
+	sqrtss		xmm0, xmm0
+	jmp			end_func
+
+next2:
+
+	; coord b = *((float*)&res4) / *((float*)&res52);
+	divss		xmm4, xmm3			; xmm4 = b
+	; __m128 bb = _mm_set1_ps(b);
+	shufps		xmm4, xmm4, 0		; xmm4 = bb
+
+	; __m128 res9 = _mm_mul_ps(bb, res1); // vx * b, vy * b, unk, unk
+	mulps		xmm0, xmm4			; xmm0 = res9
+	; __m128 res10 = _mm_add_ps(*vec2, res9); // pbx, pby, unk, unk
+	addps		xmm0, xmm1			; xmm0 = res10
+
+	; __m128 res11 = _mm_sub_ps(res6, res10); // t1, t2, unk, unk
+	subps		xmm2, xmm0			; xmm2 = res11
+
+	; __m128 res12 = _mm_mul_ps(res11, res11); // t1^2, t2^2, unk, unk
+	mulps		xmm2, xmm2			; xmm2 = res12
+
+	; return sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	movaps		xmm0, xmm2			; xmm0 = res12
+	shufps		xmm2, xmm2, 0E1h
+	addss		xmm0, xmm2
+	sqrtss		xmm0, xmm0
+
+
+end_func:
+
+	; end function	
+	ret
+distance_sse_v6 endp
 
 end
