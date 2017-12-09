@@ -2,6 +2,7 @@
 #include <malloc.h>
 #include <stdbool.h>
 #include <math.h>
+#include <float.h>
 #include "first.h"
 
 //#define MINIMAL_DEBUG2
@@ -13,12 +14,20 @@ struct point {
 	point() {};
 };
 
-struct calc_circle {
+struct calc_data {
 	struct branch *br;
 	indexer idx;
-	coord radius;
+	union {
+		coord radius;
+		coord dist;
+	};
 	struct point center;
-	calc_circle(): center(0, 0) {};
+#ifdef CALC_POINT
+	// for search point
+	indexer curr_idx;
+#endif // CALC POINT
+
+	calc_data(): center(0, 0) {};
 };
 
 /*
@@ -149,8 +158,8 @@ bool check_intersection(coord p1x, coord p1y, coord p2x, coord p2y, coord p3x, c
 /*
 	function to search items in rectangle
 */
-#ifdef CALC_CIRCLE
-indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback2, void *center_circle)
+#if defined(CALC_CIRCLE) || defined(CALC_POINT)
+indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback2, void *data)
 #else
 indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items)
 #endif
@@ -174,6 +183,11 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	indexer i = 0;
 
 	coord dist = 0.0;
+
+#ifdef CALC_POINT
+	coord tmp_dist = FLT_MAX;
+	indexer tmp_idx = -1;
+#endif // CALC_POINT
 	/*	struct t_result tres;
 	coord q1 = nd->x2 - nd->x1;
 	coord q2 = nd->y2 - nd->y1;
@@ -184,7 +198,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 		// node in bounrary or bounrary in node
 		if (nd->x1 <= x_max && nd->x2 >= x_min && nd->y1 <= y_max && nd->y2 >= y_min) {
 			// check node fully in the boundary
-#ifdef CALC_CIRCLE
+#if defined(CALC_CIRCLE) || defined(CALC_POINT)
 			if (!callback2 && nd->x1 >= x_min && nd->y1 >= y_min && nd->x2 <= x_max && nd->y2 <= y_max) {
 #else
 			if (nd->x1 >= x_min && nd->y1 >= y_min && nd->x2 <= x_max && nd->y2 <= y_max) {
@@ -204,7 +218,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 						// checking like node
 						if (br->x_min <= x_max && br->x_max >= x_min && br->y_min <= y_max && br->y_max >= y_min) {
 							// check branch fully in the boundary
-#ifdef CALC_CIRCLE
+#if defined(CALC_CIRCLE) || defined(CALC_POINT)
 							if (!callback2 && br->x_min >= x_min && br->y_min >= y_min && br->x_max <= x_max && br->y_max <= y_max) {
 #else
 							if (br->x_min >= x_min && br->y_min >= y_min && br->x_max <= x_max && br->y_max <= y_max) {
@@ -310,11 +324,11 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 
 #ifdef CALC_CIRCLE
 										// check callback function to store in return collection
-										if (fl1 && callback2 && center_circle) {
-											struct calc_circle cc;
+										if (fl1 && callback2 && data) {
+											struct calc_data cc;
 											cc.br = br;
 											cc.idx = i1;
-											struct point *center = (struct point*)center_circle;
+											struct point *center = (struct point*)data;
 											cc.center = struct point(*center);
 											cc.radius = (x_max - x_min) / 2.0;
 
@@ -323,14 +337,34 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 											cc1++;
 											if (fl1)
 												cc2++;
-#endif
+#endif // MINIMAL_DEBUG2
 										}
+#elif defined(CALC_POINT)
+										// check callback function to store in return collection
+										if (fl1 && callback2 && data) {
+											struct calc_data cc;
+											cc.br = br;
+											cc.idx = i1;
+											struct point *center = (struct point*)data;
+											cc.center = struct point(*center);
+											//cc.radius = (x_max - x_min) / 2.0;
+											cc.dist = FLT_MAX;
+											cc.curr_idx = -1;
+
+											fl1 = callback2(&cc);
+											if (cc.dist < tmp_dist) {
+												tmp_dist = cc.dist;
+												tmp_idx = cc.curr_idx;
+											}
+											idx = 1;
+										}
+
 #endif //CALC_CIRCLE
 
 										if (fl1) {
 #ifdef MINIMAL_DEBUG2
 											cc3++;
-#endif
+#endif // MINIMAL_DEBUG2
 											// check memory and store index
 											if (idx > mem_size * count_mem) {
 												count_mem++;
@@ -423,6 +457,13 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	printf("DEBUG: count1 = %u, count2 = %u, count3 = %u, count4 = %u\n", cc1, cc2, cc3, cc4);
 #endif
 
+#ifdef CALC_POINT
+	idxs[0] = tmp_idx;
+	if (data) {
+		struct point *center = (struct point*)data;
+		center->x = tmp_dist;
+	}
+#endif
 	return idxs; //(indexer)-1;
 }
 
@@ -431,17 +472,24 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 */
 /* ret_callback2_circle */ bool scircle2(void *p)
 {
-	struct calc_circle *cc = (struct calc_circle*)p;
+	struct calc_data *cc = (struct calc_data*)p;
 	indexer end = cc->idx + 1 >= cc->br->count_shapes ? cc->br->count_leafs : cc->br->offset[cc->idx + 1];
 	indexer k = cc->br->offset[cc->idx];
 	struct point pc(cc->center);
 	if (k == end) {
+#ifndef CALC_POINT
 		if (sqrt((cc->br->leaf_x[k] - pc.x) * (cc->br->leaf_x[k] - pc.x) + (cc->br->leaf_y[k] - pc.y) + (cc->br->leaf_y[k] - pc.y)) <= cc->radius) {
+		//if ((cc->br->leaf_x[k] - pc.x) * (cc->br->leaf_x[k] - pc.x) + (cc->br->leaf_y[k] - pc.y) + (cc->br->leaf_y[k] - pc.y) <= cc->radius * cc->radius) {
 			return true;
 		}
 		else {
 			return false;
 		}
+#else
+		cc->dist = sqrt((cc->br->leaf_x[k] - pc.x) * (cc->br->leaf_x[k] - pc.x) + (cc->br->leaf_y[k] - pc.y) + (cc->br->leaf_y[k] - pc.y));
+		cc->curr_idx = cc->br->leaf_number[cc->br->offset[cc->idx]];
+		return false; // because point
+#endif
 	}
 
 	struct point p0, p1;
@@ -454,8 +502,15 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 			p1 = struct point(cc->br->leaf_x[cc->br->offset[cc->idx]], cc->br->leaf_y[cc->br->offset[cc->idx]]);
 		t1 = distance2(&pc, &p0, &p1);
 
+#ifndef CALC_POINT
 		if (t1 <= cc->radius)
 			return true;
+#else
+		if (t1 < cc->dist) {
+			cc->dist = t1;
+			cc->curr_idx = cc->br->leaf_number[cc->br->offset[cc->idx]];
+		}
+#endif
 	}
 
 	return false;
@@ -484,6 +539,15 @@ indexer* search_circle2(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*i
 		//if ()
 	}
 	*/
+	return idxs_tmp;
+}
+#elif defined(CALC_POINT)
+indexer* search_nearest_item2(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, bool intersection, /*out*/indexer *count_items, /*out*/coord *dist)
+{
+	//indexer count_tmp, count = 0;
+	struct point tmp(x, y);
+	__declspec(align(16)) indexer* idxs_tmp = search_rect2(nd, x - radius, y - radius, x + radius, y + radius, intersection, count_items, scircle2, &tmp);
+	*dist = tmp.x;
 	return idxs_tmp;
 }
 #endif // CALC_CIrcle

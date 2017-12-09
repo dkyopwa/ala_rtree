@@ -426,10 +426,18 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	__int64 t3 = __rdtsc();
 #ifdef CALC_CIRCLE
 	idxs3 = search_circle2(nd, 52.5, 52.5, 2.5, true, &count3);
-#endif
+#elif defined(CALC_POINT)
+	coord dist = 0;
+	idxs3 = search_nearest_item2(nd, 52.5, 52.5, 2.5, false, &count3, &dist);
+#endif // CALC_CIRCLE
 	__int64 t4 = __rdtsc();
 	char ch[1024];
-	sprintf_s(ch, 1024, "end3 %lld vs %lld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %lld (count = %d)", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3);
+	sprintf_s(ch, 1024, "end3 %lld vs %lld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %lld (count = %d) speed = %f", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3, (t4 - t3) * 100.0 / (t3 - t2));
+	lprintf(ch);
+#ifdef CALC_POINT
+	sprintf_s(ch, 1024, "Near item dist = %f, idx = %u", dist, idxs3[0]);
+	lprintf(ch);
+#endif
 	if (idxs1)
 		_aligned_free(idxs1);
 	if (idxs2)
@@ -438,7 +446,6 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 		_aligned_free(idxs3);
 	if (idxs4)
 		_aligned_free(idxs4);
-	lprintf(ch);
 /*	if (idxs) {
 		printf("count = %u\n", count);
 

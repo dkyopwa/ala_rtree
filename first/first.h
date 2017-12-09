@@ -207,8 +207,11 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius);
 indexer search_point_sse(struct node *nd, coord x, coord y, coord radius);
 
 #ifdef CALC_CIRCLE
-indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *center_circle = NULL);
+indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
 indexer* search_circle2(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, bool intersection, /*out*/indexer *count_items);
+#elif defined(CALC_POINT)
+indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
+indexer* search_nearest_item2(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, bool intersection, /*out*/indexer *count_items, /*out*/coord *dist);
 #else
 indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items);
 #endif
