@@ -1,4 +1,4 @@
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <malloc.h>
 #include <math.h>
 #include <stdlib.h>
@@ -54,9 +54,9 @@ int main()
 	if (nd) {
 		// testing
 		lprintf("start");
-		try_find(nd, lll, count_of_leafs);
+		//try_find(nd, lll, count_of_leafs);
 		try_find2(nd, lll, count_of_leafs);
-		try_find3(nd, lll, count_of_leafs);
+		//try_find3(nd, lll, count_of_leafs);
 		lprintf("end");
 	}
 
@@ -81,7 +81,7 @@ __declspec(align(16)) struct leaf* generate(unsigned *count, unsigned **offsets_
 #ifndef _WIN
 	f1 = fopen("/media/vovan/OS/projects/tmp/1/7.bin", "rb");
 #else
-	errno_t t = fopen_s(&f1, "c:/projects/tmp/1/7.bin", "rb");
+	errno_t t = fopen_s(&f1, "c:/projects/tmp/1/4.bin", "rb");
 #endif
 
 	unsigned count1 = 0;
@@ -191,8 +191,13 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	}
 	}
 	*/
-	const unsigned count = 100000;
-	const coord radius = 100;
+	const unsigned count = 1000000;
+	/*const coord radius = (nd->x2 - nd->x1) < (nd->y2 - nd->y1) ? (nd->x2 - nd->x1)/100.0 : (nd->y2 - nd->y1)/100.0;
+	char ch1[1024];
+	sprintf_s(ch1, 1024, "RADIUS = %f", radius);
+	lprintf(ch1);
+	_getch();*/
+	const coord radius = 0.3;
 
 	__declspec(align(16)) indexer *idxs1 = (indexer*)_aligned_malloc(sizeof(indexer) * count, 16);
 	__declspec(align(16)) indexer *idxs2 = (indexer*)_aligned_malloc(sizeof(indexer) * count, 16);
@@ -410,15 +415,34 @@ void find_thread(void *params)
 
 void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
-	indexer *idxs = NULL;
-	indexer count = 0;
+	indexer *idxs1 = NULL, *idxs2 = NULL, *idxs3 = NULL, *idxs4 = NULL;
+	indexer count1 = 0, count2 = 0, count3 = 0, count4 = 0;
 	lprintf("start3");
-	idxs = search_in_rect(nd, 100, 100, 512, 500, &count);
-	lprintf("end3");
-	if (idxs) {
+	__int64 t1 = __rdtsc();
+	idxs1 = search_in_rect(nd, 50, 50, 55, 55, &count1);
+	__int64 t2 = __rdtsc();
+	idxs2 = search_rect2(nd, 50, 50, 55, 55, false, &count2);
+	//idxs4 = search_rect2(nd, 50, 50, 55, 55, true, &count4, ret_callback2_circle(1));
+	__int64 t3 = __rdtsc();
+#ifdef CALC_CIRCLE
+	idxs3 = search_circle2(nd, 52.5, 52.5, 2.5, true, &count3);
+#endif
+	__int64 t4 = __rdtsc();
+	char ch[1024];
+	sprintf_s(ch, 1024, "end3 %lld vs %lld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %lld (count = %d)", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3);
+	if (idxs1)
+		_aligned_free(idxs1);
+	if (idxs2)
+		_aligned_free(idxs2);
+	if (idxs3)
+		_aligned_free(idxs3);
+	if (idxs4)
+		_aligned_free(idxs4);
+	lprintf(ch);
+/*	if (idxs) {
 		printf("count = %u\n", count);
 
-/*		FILE *f2;
+		FILE *f2;
 		char name[256];
 		sprintf_s(name, 256, "c:/projects/tmp/1/%s", "test2_res.svg");
 		errno_t t = fopen_s(&f2, name, "w");
@@ -426,8 +450,8 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 		//short num_color = 1;
 
 		fprintf(f2, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"\?>\n<svg version=\"1.1\" baseProfile=\"full\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:ev=\"http://www.w3.org/2001/xml-events\" height=\"10000px\"  width=\"10000px\">\n"); //  height=\"400px\"  width=\"400px\"
-		fprintf(f2, "\t<polygon points=\"100,100 512,100 512,500 100,500\" stroke-width=\"1\" stroke=\"rgb(50, 50, 150)\" fill=\"none\"/>\n");
-		for (unsigned k = 0; k < count; ++k) {
+		fprintf(f2, "\t<polygon points=\"100,100 1012,100 1012,1000 100,1000\" stroke-width=\"1\" stroke=\"rgb(50, 50, 150)\" fill=\"none\"/>\n");
+		/*for (unsigned k = 0; k < count; ++k) {
 			unsigned i;
 			if (idxs[k] == (indexer)-1)
 				continue;
@@ -445,15 +469,37 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 			//fprintf(f2, "%u,%u ", (unsigned)xx[k], (unsigned)yy[k]);
 			fprintf(f2, "\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" fill=\"%s\"/>\n", "rgb(150, 150, 255)"); // rgb(0, 0, 0) rgb(150,150,255)
 			//fprintf(f2, "\t<circle cx=\"%u\" cy=\"%u\" r=\"3\" stroke-width=\"1\" stroke=\"rgb(50, 50, 50)\" fill=\"%s\"/>\n", (unsigned)xx[k], (unsigned)yy[k], colors[num_color]);
+		} */
+
+/*		for (indexer i = 0; i < count_of_leafs; ++i) {
+			bool in_rect = false;
+			indexer tmp = lll[i].number;
+			for (indexer k = 0; k < count; ++k) {
+				if (idxs[k] == tmp) {
+					in_rect = true;
+					break;
+				}
+			}
+			fprintf(f2, "\t<polygon points=\"");
+			while (lll[i].number == tmp) {
+				fprintf(f2, "%u,%u ", (unsigned)lll[i].x, (unsigned)lll[i].y);
+				i++;
+			}
+			if (in_rect) {
+				fprintf(f2, "\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" fill=\"%s\"/>\n", "rgb(150, 150, 255)");
+			}
+			else {
+				fprintf(f2, "\" stroke-width=\"1\" stroke=\"rgb(0, 0, 0)\" fill=\"%s\"/>\n", "rgb(255, 150, 150)");
+			}
 		}
 
 		fprintf(f2, "</svg>");
 		fclose(f2);
-		*/
-	}
+		
+	}*/
 
-	if (idxs)
-		_aligned_free(idxs);
+//	if (idxs)
+//		_aligned_free(idxs);
 }
 
 void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)

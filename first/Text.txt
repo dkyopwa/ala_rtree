@@ -48,6 +48,9 @@ http://www.cyberforum.ru/cpp-beginners/thread27084.html - quick sort
 27. Выкинуть из памяти лишнее после построения дерева
 + 28. Поиск в круге
 29. Оптимизация построения дерева (кратность 16)
+30. Поиск в радиусе переделать на поиск в области, а все что попало, то доделать в радиусе. Возможно придётся строить новое дерево (плохо). Надо думать. Скорее всего надо переделать механихм поиска просто по сплошному списку, хотя в памяти уже будет бардак.
+31. Добавить флаг пересечения (область и круг)
+32. Добавить обрабатывающую функцию при поиске (область, круг?)
 
 /GS /GL /W3 /Gy /Zc:wchar_t /Zi /Gm- /O2 /sdl /Fd"x64\Release\vc140.pdb" /Zc:inline /fp:precise /D "_WIN" /D "NOMINMAX" /D "NDEBUG" /D "_CONSOLE" /D "_UNICODE" /D "UNICODE" /errorReport:prompt /WX- /Zc:forScope /Gd /Oi /MD /Fa"x64\Release\" /EHsc /nologo /Fo"x64\Release\" /Ot /Fp"x64\Release\first.pch" 
 /OUT:"C:\projects\first\x64\Release\first.exe" /MANIFEST /LTCG:incremental /NXCOMPAT /PDB:"C:\projects\first\x64\Release\first.pdb" /DYNAMICBASE "kernel32.lib" "user32.lib" "gdi32.lib" "winspool.lib" "comdlg32.lib" "advapi32.lib" "shell32.lib" "ole32.lib" "oleaut32.lib" "uuid.lib" "odbc32.lib" "odbccp32.lib" /MACHINE:X64 /OPT:REF /INCREMENTAL:NO /PGD:"C:\projects\first\x64\Release\first.pgd" /SUBSYSTEM:CONSOLE /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /ManifestFile:"x64\Release\first.exe.intermediate.manifest" /OPT:ICF /ERRORREPORT:PROMPT /NOLOGO /TLBID:1

@@ -74,7 +74,7 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 	// think about exclude first step and add all leafs in one node and calc only boundary
 	unsigned total_mem = 0;
 	for (unsigned i = 0; i < cpus; ++i) {
-		total_mem += ((struct branch*)(nds[i].child_node[0]))->count_leafs;
+		total_mem += ((__declspec(align(16)) struct branch*)(nds[i].child_node[0]))->count_leafs;
 	}
 	total_mem = (unsigned)(ceil((double)total_mem / 16.0) * 16);
 	//((struct branch*)(nds[0].child_node[0]))->leafs = (struct leaf*)realloc(((struct branch*)(nds[0].child_node[0]))->leafs, sizeof(struct leaf) * total_mem);
@@ -271,6 +271,7 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 					ysh_max = tbr->leaf_y[j];
 			}
 #endif // OLD_LEAFS
+			// boundary of branch
 			tbr->xsh_min[k] = xsh_min;
 			tbr->xsh_max[k] = xsh_max;
 			tbr->ysh_min[k] = ysh_min;
@@ -511,11 +512,11 @@ void del_root()
 	//unsigned stack_pos = 0;
 	//indexer *stack_idx = (indexer*)malloc(sizeof(indexer) * mem_size * mem_offset);
 
-	struct node *nd = m_nodes;
+	__declspec(align(16)) struct node *nd = m_nodes;
 
 	if (nd->is_last_node) {
 		for (unsigned i = 0; i < nd->count_child_nodes; ++i) {
-			struct branch *br = (struct branch*)(nd->child_node)[i];
+			__declspec(align(16)) struct branch *br = (struct branch*)(nd->child_node)[i];
 			if (br->merge_next_leaf)
 				_aligned_free(br->merge_next_leaf);
 #ifdef OLD_LEADS
@@ -535,7 +536,7 @@ void del_root()
 	else {
 		//struct node* nd1 = NULL;
 		indexer i = 0;
-		struct branch *first_branch = NULL;
+		//__declspec(align(16)) struct branch *first_branch = NULL;
 		struct node *stack_node[64];
 		int stack_pos = 0;
 		indexer stack_idx[64];
@@ -543,9 +544,9 @@ void del_root()
 		while (i < nd->count_child_nodes) {
 			if (nd->is_last_node) {
 				for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
-					struct branch *br = (struct branch*)(nd->child_node)[j];
-					if (!first_branch)
-						first_branch = br;
+					struct branch *br = (struct branch*)(nd->child_node[j]);
+					//if (!first_branch)
+					//	first_branch = br;
 					_aligned_free(br->merge_next_leaf);
 					//free(br->center);
 #ifdef OLD_LEAFS
@@ -592,7 +593,7 @@ void del_root()
 			}
 		}
 //		return;
-		_aligned_free(first_branch);
+		//_aligned_free(first_branch);
 
 		//i = 0;
 		nd = m_nodes;
@@ -803,7 +804,7 @@ struct node* separate(struct node* nd)
 {
 	if (!nd->is_last_node)
 		return NULL;
-	struct branch *br = (struct branch*)(nd->child_node[0]);
+	__declspec(align(16)) struct branch *br = (struct branch*)(nd->child_node[0]);
 	if (br->count_leafs > MAX_ITEMS_IN_NODE) {
 		size_t size_separate = (size_t)ceil((double)(br->count_leafs) / MAX_ITEMS_IN_NODE);
 		unsigned char t1 = 0, t2 = 0;
@@ -1030,10 +1031,10 @@ struct node* separate(struct node* nd)
 		_aligned_free(positions1);
 		_aligned_free(positions2);
 
-		return nd;
+	//	return nd;
 	}
 
-	return NULL;
+	return nd;
 }
 
 /// create threads for first node
@@ -1639,7 +1640,7 @@ struct node* separate_nodes(struct node* nd)
 			init_root2(&(nd1[i]), 0.0, 0.0);
 #endif
 			// assign branches to node
-			_aligned_free((struct branch*)nd1[i].child_node[0]);
+			_aligned_free(/*(struct branch*)*/nd1[i].child_node[0]);
 			_aligned_free(nd1[i].child_node);
 			nd1[i].child_node = (void**)_aligned_malloc(sizeof(void*) * (positions1[i].idx2 - positions1[i].idx1 + 1), 16);
 			for (unsigned j = positions1[i].idx1; j < positions1[i].idx2 + 1; ++j) {

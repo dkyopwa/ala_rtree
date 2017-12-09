@@ -14,10 +14,11 @@ typedef float	coord;
 typedef unsigned	indexer;
 
 typedef bool (*ret_callback)(indexer, void*);
+typedef bool (*ret_callback2_circle)(void*);
 
 const double PI = 3.1415926535897932384626433832795;
 const unsigned MAX_ITEMS_IN_NODE = 1024;
-const unsigned MAX_NODES = 4;
+const unsigned MAX_NODES = 32;
 //const unsigned MAX_ADDED_LEAFS_IN_ITER = 1000000; // for malloc and realloc memory
 
 struct leaf {
@@ -81,6 +82,7 @@ struct branch {
 	__declspec(align(16)) coord *leaf_x;
 	__declspec(align(16)) coord *leaf_y;
 	__declspec(align(16)) indexer *leaf_number;
+	//__declspec(align(16)) indexer *ofst_leaf_n;
 #endif //OLD_LEAFS
 
 	unsigned count_shapes;
@@ -203,5 +205,12 @@ indexer search_circle(struct node *nd, coord radius, ret_callback callback, void
 indexer* search_in_circles(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, /*out*/indexer *count_items);
 indexer search_point(struct node *nd, coord x, coord y, coord radius);
 indexer search_point_sse(struct node *nd, coord x, coord y, coord radius);
+
+#ifdef CALC_CIRCLE
+indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *center_circle = NULL);
+indexer* search_circle2(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, bool intersection, /*out*/indexer *count_items);
+#else
+indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items);
+#endif
 
 #endif //FIRST_H_HEADERS

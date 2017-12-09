@@ -498,7 +498,7 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 									// find minimal distance
 									if (br->merge_next_leaf[k]) {
 										// line
-										/*struct point p, line_p0, line_p1;
+										struct point p, line_p0, line_p1;
 										p.x = x;
 										p.y = y;
 										// TO DO LEAFS
@@ -507,13 +507,13 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 										line_p1.x = br->leaf_x[k + 1];
 										line_p1.y = br->leaf_y[k + 1];
 										dist = distance(&p, &line_p0, &line_p1);
-										*/
-										struct vector v1, v2;
+										
+										/*struct vector v1, v2;
 										v1.f1 = br->leaf_x[k + 1]; v1.f2 = br->leaf_y[k + 1]; v1.f3 = x; v1.f4 = y;
 										v2.f1 = br->leaf_x[k]; v2.f2 = br->leaf_y[k]; v2.f3 = br->leaf_x[k]; v2.f4 = br->leaf_y[k];
 										__m128 vec1 = _mm_load_ps((const float*)&v1); // _mm_setr_ps(br->leaf_x[k + 1], br->leaf_y[k + 1], x, y);
 										__m128 vec2 = _mm_load_ps((const float*)&v2); // _mm_setr_ps(br->leaf_x[k], br->leaf_y[k], br->leaf_x[k], br->leaf_y[k]);
-										dist = distance_sse_v6(&vec1, &vec2);
+										dist = distance_sse_v6(&vec1, &vec2); */
 									}
 									else {
 										// point
@@ -526,7 +526,7 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 									}
 									if (dist < tres.dist) {
 										tres.dist = dist;
-										// TO DO LAEFS
+										// TO DO LEAFS
 										tres.idx = br->leaf_number[k];
 										tx = br->leaf_x[k];
 										ty = br->leaf_y[k];
@@ -901,6 +901,7 @@ indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, 
 								stack_idx[stack_pos] = i;
 								stack_node[stack_pos] = nd;
 								stack_pos++;
+								//printf("stack_pos 1 = %u\n", stack_pos);
 								nd = (struct node*)nd->child_node[i];
 								i = 0;
 								break;
@@ -911,6 +912,7 @@ indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, 
 						stack_idx[stack_pos] = i;
 						stack_node[stack_pos] = nd;
 						stack_pos++;
+						//printf("stack_pos 2 = %u\n", stack_pos);
 						i = 0;
 						nd = (struct node*)nd->child_node[i];
 					}
@@ -928,6 +930,7 @@ indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, 
 						stack_idx[stack_pos] = i;
 						stack_node[stack_pos] = nd;
 						stack_pos++;
+						//printf("stack_pos 3 = %u\n", stack_pos);
 						nd = (struct node*)nd->child_node[i];
 						i = 0;
 						break;
