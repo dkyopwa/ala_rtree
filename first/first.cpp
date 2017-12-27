@@ -536,17 +536,28 @@ void del_root()
 	else {
 		//struct node* nd1 = NULL;
 		indexer i = 0;
-		//__declspec(align(16)) struct branch *first_branch = NULL;
+		__declspec(align(16)) struct branch *first_branch = NULL;
+		__declspec(align(16)) struct node* first_node = NULL;
+		__declspec(align(16)) struct node* stack_first_node[64];
+		__declspec(align(16)) struct node* stack_child_node[64];
+		for (unsigned i = 0; i < 64; ++i) {
+			stack_first_node[i] = NULL;
+			stack_child_node[i] = NULL;
+		}
 		struct node *stack_node[64];
 		int stack_pos = 0;
 		indexer stack_idx[64];
 
 		while (i < nd->count_child_nodes) {
+			if (!stack_first_node[stack_pos] || nd < stack_first_node[stack_pos])
+				stack_first_node[stack_pos] = nd;
 			if (nd->is_last_node) {
+				/*if (!first_node || nd < first_node)
+					first_node = nd; */
 				for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
 					struct branch *br = (struct branch*)(nd->child_node[j]);
-					//if (!first_branch)
-					//	first_branch = br;
+					if (!first_branch || br < first_branch)
+						first_branch = br;
 					_aligned_free(br->merge_next_leaf);
 					//free(br->center);
 #ifdef OLD_LEAFS
@@ -560,6 +571,10 @@ void del_root()
 					_aligned_free(br->ysh_max);
 					_aligned_free(br->ysh_min);
 					_aligned_free(br->offset);
+					// leafs
+					_aligned_free(br->leaf_x);
+					_aligned_free(br->leaf_y);
+					_aligned_free(br->leaf_number);
 				}
 				_aligned_free(nd->child_node);
 				_aligned_free(nd->center_child_node);
@@ -571,6 +586,7 @@ void del_root()
 					i = stack_idx[stack_pos] + 1;
 
 					if (i < nd->count_child_nodes) {
+						// insert to stack
 						stack_idx[stack_pos] = i;
 						stack_node[stack_pos] = nd;
 						stack_pos++;
@@ -579,12 +595,13 @@ void del_root()
 						break;
 					} else {
 						//free(nd->child_node[0]);
-						//free(nd->child_node);
+						_aligned_free(nd->child_node);
 						//free(nd->center_child_node);
 						//free(nd);
 					}
 				}
 			} else {
+				// insert to stack
 				stack_idx[stack_pos] = i;
 				stack_node[stack_pos] = nd;
 				stack_pos++;
@@ -593,135 +610,15 @@ void del_root()
 			}
 		}
 //		return;
-		//_aligned_free(first_branch);
-
-		//i = 0;
-		nd = m_nodes;
-/*		i = 0;
-		while (i < nd->count_child_nodes) {
-			if (!nd->is_last_node) {
-				stack_node[stack_pos] = nd;
-				stack_idx[stack_pos] = i;
-				stack_pos++;
-				i = 0;
-				nd = (struct node*)nd->child_node[i];
-			} else {
-				free(nd->child_node);
-				// return from stack
-				while (stack_pos > 0) {
-					stack_pos--;
-					nd = stack_node[stack_pos];
-					i = stack_idx[stack_pos] + 1;
-
-					if (i < nd->count_child_nodes) {
-						stack_idx[stack_pos] = i;
-						stack_node[stack_pos] = nd;
-						stack_pos++;
-						nd = (struct node*)nd->child_node[i];
-						i = 0;
-						break;
-					}
-					free(nd->child_node);
-				}
-			}
-		}*/
-		return;
-
-		stack_pos = 0;
-		i = 0;
-		struct node *old_nd = NULL;
-		//do /*while (!nd->is_last_node)*/ {
-		while (i < nd->count_child_nodes) {
-			stack_idx[stack_pos] = i;
-			stack_node[stack_pos] = nd;
-			stack_pos++;
-			if (!nd->is_last_node)
-				nd = (struct node*)nd->child_node[0];
-			else {
-				//stack_node[stack_pos] = (struct node*)nd->child_node[0];
-				//stack_pos++;
-				//break;
-				while (stack_pos > 0) {
-					stack_pos--;
-					old_nd = nd;
-					nd = stack_node[stack_pos];
-					if (!old_nd->is_last_node)
-						_aligned_free(old_nd);
-					i = stack_idx[stack_pos] + 1;
-
-					if (i < nd->count_child_nodes) {
-						stack_idx[stack_pos] = i;
-						stack_node[stack_pos] = nd;
-						stack_pos++;
-						nd = (struct node*)nd->child_node[i];
-						i = 0;
-						break;
-					}
-					else {
-						//free(nd->child_node[0]);
-						//free(nd->child_node);
-						//free(nd->center_child_node);
-						//free(nd);
-					}
-				}
-			}
-		}; // while (true);
-
-		return;
-
-		for (int i = stack_pos - 1; i >= 0; --i) {
-			//free(stack_node[i]->center_child_node);
-			_aligned_free(stack_node[i]);
+		_aligned_free(first_branch);
+		//_aligned_free(first_node);
+		for (unsigned k = 0; k < 64; ++k) {
+			if (stack_first_node[k])
+				_aligned_free(stack_first_node[k]);
+			else
+				break;
 		}
 	}
-		///////////////////////////////
-	/*	bool flag_del_branches = false;
-		do {
-			if (i >= nd->count_child_nodes) {
-				if (stack_pos > 0) {
-					// return from stack
-					stack_pos--;
-					nd = stack_node[stack_pos];
-					i = stack_idx[stack_pos] + 1;
-					continue;
-				} else {
-					break;
-				}
-			}
-			stack_idx[stack_pos] = i;
-			stack_node[stack_pos] = nd;
-			stack_pos++;
-			nd = (struct node*)nd->child_node[i];
-			if (nd->is_last_node) {
-				struct branch *br;
-				for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
-					br = (struct branch*)(nd->child_node)[j];
-					if (br->merge_next_leaf)
-						free(br->merge_next_leaf);
-					if (br->leafs)
-						free(br->leafs);
-				}
-				flag_del_branches = true;
-				if (!i)
-					first_branch = (struct branch*)(nd->child_node)[0];
-
-				free(nd->child_node);
-				// return from stack
-				stack_pos--;
-				nd = stack_node[stack_pos];
-				i = stack_idx[stack_pos] + 1;
-			} 
-		} while (true);
-	///	if (first_branch)
-	///		free(first_branch);
-		free(nd);
-	}
-	*/
-	
-	//free(stack_idx);
-	//free(stack_node);
-	// free(m_nodes->child_node);
-	// free(m_nodes);
 }
 
 /// add leafs v2
@@ -1352,7 +1249,7 @@ bool find_branch_centers(struct node *nd)
 struct node* separate_branches(struct node* nd)
 {
 	if (!nd->is_last_node) {
-		return NULL;
+		return nd;
 	}
 
 	if (nd->count_child_nodes <= MAX_NODES) {
@@ -1450,18 +1347,21 @@ struct node* separate_branches(struct node* nd)
 
 	// prepare new nodes
 	__declspec(align(16)) struct node *nd1 = (struct node*)_aligned_malloc(sizeof(struct node) * size_separate, 16);
+	//__declspec(align(16)) void** pointer_void = (void**)_aligned_malloc(sizeof(void*) * size_separate, 16);
 	//indexer total_count_br = 0;
 	for (unsigned i = 0; i < size_separate; ++i) {
 #ifdef OLD_LEAFS
 		init_root2(&(nd1[i]), &(((struct branch*)(nd->child_node[0]))->leafs[0]));
 #else
 		// TO DO LEAFS
-		init_root2(&(nd1[i]), ((struct branch*)(nd->child_node[0]))->leaf_x[0], ((struct branch*)(nd->child_node[0]))->leaf_y[0]);
+		//init_root2(&(nd1[i]), ((struct branch*)(nd->child_node[0]))->leaf_x[0], ((struct branch*)(nd->child_node[0]))->leaf_y[0]);
+		init_root2(&(nd1[i]), tbr1[positions1[i].idx1].x_min, tbr1[positions1[i].idx1].y_min);
 #endif // OLD_LEAFS
 		// assign branches to node
 		_aligned_free((struct branch*)nd1[i].child_node[0]);
 		_aligned_free(nd1[i].child_node);
 		nd1[i].child_node = (void**)_aligned_malloc(sizeof(void*) * (positions1[i].idx2 - positions1[i].idx1 + 1), 16);
+		//nd1[i].child_node = &(pointer_void[positions1[i].idx1]);
 		for (unsigned j = positions1[i].idx1; j < positions1[i].idx2 + 1; ++j) {
 			nd1[i].child_node[j - positions1[i].idx1] = &(tbr1[j]);
 		}
@@ -1528,7 +1428,7 @@ struct node* separate_branches(struct node* nd)
 struct node* separate_nodes(struct node* nd)
 {
 	if (nd->is_last_node) {
-		return NULL;
+		return nd;
 	}
 
 	if (nd->count_child_nodes <= MAX_NODES) {
@@ -1680,6 +1580,7 @@ struct node* separate_nodes(struct node* nd)
 		//nd->child_node = (void**)malloc(sizeof(void*) * size_separate);
 
 		// free branches and nodes
+		_aligned_free(nd->child_node[0]);
 		_aligned_free(nd->child_node);
 		nd->child_node = (void**)_aligned_malloc(sizeof(void*) * size_separate, 16);
 		// free centers
