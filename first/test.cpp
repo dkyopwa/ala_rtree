@@ -7,6 +7,7 @@
 	#include <sys/time.h>
 	#include <unistd.h>
 	#include <pthread.h>
+	#define __int64 long long
 #else
 	#include "time.h"
 	#include <conio.h>
@@ -80,7 +81,7 @@ struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count
 {
 	FILE *f1;
 #ifndef _WIN
-	f1 = fopen("/media/vovan/OS/projects/tmp/1/7.bin", "rb");
+	f1 = fopen("/media/vovan/OS/projects/tmp/1/4.bin", "rb");
 #else
 	errno_t t = fopen_s(&f1, "c:/projects/tmp/1/4.bin", "rb");
 #endif
@@ -419,21 +420,38 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	indexer *idxs1 = NULL, *idxs2 = NULL, *idxs3 = NULL, *idxs4 = NULL;
 	indexer count1 = 0, count2 = 0, count3 = 0, count4 = 0;
 	lprintf("start3");
+#ifdef _WIN
 	__int64 t1 = __rdtsc();
+#else
+	clock_t t1 = clock();
+#endif //_win
 	idxs1 = search_in_rect(nd, 50, 50, 55, 55, &count1);
+#ifdef _WIN
 	__int64 t2 = __rdtsc();
+#else
+	clock_t t2 = clock();
+#endif //_WIN
 	idxs2 = search_rect2(nd, 50, 50, 55, 55, false, &count2);
 	//idxs4 = search_rect2(nd, 50, 50, 55, 55, true, &count4, ret_callback2_circle(1));
+#ifdef _WIN
 	__int64 t3 = __rdtsc();
+#else
+	clock_t t3 = clock();
+#endif //_WIN
 #ifdef CALC_CIRCLE
 	idxs3 = search_circle2(nd, 52.5, 52.5, 2.5, true, &count3);
 #elif defined(CALC_POINT)
 	coord dist = 0;
 	idxs3 = search_nearest_item2(nd, 52.5, 52.5, 2.5, false, &count3, &dist);
 #endif // CALC_CIRCLE
-	__int64 t4 = __rdtsc();
 	char ch[1024];
+#ifdef _WIN
+	__int64 t4 = __rdtsc();
 	sprintf_s(ch, 1024, "end3 %lld vs %lld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %lld (count = %d) speed = %f", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3, (t4 - t3) * 100.0 / (t3 - t2));
+#else
+	clock_t t4 = clock();
+	snprintf(ch, 1024, "end3 %lld vs %lld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %lld (count = %d) speed = %f", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3, (t4 - t3) * 100.0 / (t3 - t2));
+#endif //_WIN
 	lprintf(ch);
 #ifdef CALC_POINT
 	sprintf_s(ch, 1024, "Near item dist = %f, idx = %u", dist, idxs3[0]);

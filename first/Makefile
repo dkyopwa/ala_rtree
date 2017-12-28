@@ -4,12 +4,12 @@
 # Apache License 2.0
 #
 
-BUILD_TYPE=release
+BUILD_TYPE=
 
 CC=g++
 
 GDBFLAG=-ggdb
-CLDFLAGS = -lm -lpthread
+CLDFLAGS = -lm -lpthread -std=c++0x
 TMP_CFLAGS= -c -Wall -march=native -pipe $(CLDFLAGS)
 
 ifeq ($(BUILD_TYPE), )
@@ -25,15 +25,18 @@ endif
 
 CXXFLAGS="$(CFLAGS)"
 
-all: first.o search.o test.o
+all: first.o search.o search2.o test.o
 	@echo "=========== $(BUILD_TYPE) =============="
-	$(CC) first.o search.o test.o -o ala_rtree $(CLDFLAGS)
+	$(CC) first.o search.o search2.o test.o -o ala_rtree $(CLDFLAGS)
 
 first.o: first.cpp
 	$(CC) $(GDBFLAG) $(CFLAGS) first.cpp
 
 search.o: search.cpp
 	$(CC) $(GDBFLAG) $(CFLAGS) search.cpp
+	
+search2.o: search2.cpp
+	$(CC) $(GDBFLAG) $(CFLAGS) search2.cpp
 	
 test.o: test.cpp
 	$(CC) $(GDBFLAG) $(CFLAGS) test.cpp

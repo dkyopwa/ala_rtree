@@ -1,9 +1,14 @@
 #include <stdio.h>
-#include <malloc.h>
+//#include <malloc.h>
 #include <stdbool.h>
 #include <math.h>
 #include <float.h>
+#include "unimem.h"
 #include "first.h"
+
+#ifndef _WIN
+	#define __int64 long long
+#endif //_WIN
 
 //#define MINIMAL_DEBUG2
 
@@ -170,7 +175,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	// memory for result
 	size_t mem_size = 256;
 	size_t count_mem = 1;
-	__declspec(align(16)) indexer* idxs = (indexer*)_aligned_malloc(sizeof(indexer) * mem_size * count_mem, 16);
+	alignas(16) indexer* idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * mem_size * count_mem);
 	indexer idx = 0;
 
 	struct node *stack_node[64];
@@ -495,11 +500,11 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	struct point p0, p1;
 	coord t1;
 	for ( ; k < end; ++k) {
-		p0 = struct point(cc->br->leaf_x[k], cc->br->leaf_y[k]);
+		p0 = point(cc->br->leaf_x[k], cc->br->leaf_y[k]);
 		if (k != end - 1) 
-			p1 = struct point(cc->br->leaf_x[k + 1], cc->br->leaf_y[k + 1]);
+			p1 = point(cc->br->leaf_x[k + 1], cc->br->leaf_y[k + 1]);
 		else
-			p1 = struct point(cc->br->leaf_x[cc->br->offset[cc->idx]], cc->br->leaf_y[cc->br->offset[cc->idx]]);
+			p1 = point(cc->br->leaf_x[cc->br->offset[cc->idx]], cc->br->leaf_y[cc->br->offset[cc->idx]]);
 		t1 = distance2(&pc, &p0, &p1);
 
 #ifndef CALC_POINT
@@ -523,7 +528,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 indexer* search_circle2(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, /*in*/coord radius, /*in*/bool intersection, /*out*/indexer *count_items)
 {
 	//indexer count_tmp, count = 0;
-	__declspec(align(16)) indexer* idxs_tmp = search_rect2(nd, x - radius, y - radius, x + radius, y + radius, intersection, count_items, scircle2, &(struct point(x, y)));
+	alignas(16) indexer* idxs_tmp = search_rect2(nd, x - radius, y - radius, x + radius, y + radius, intersection, count_items, scircle2, &(struct point(x, y)));
 	
 	/*__declspec(align(16)) indexer* idxs = (indexer*)_aligned_malloc(sizeof(indexer) * count_tmp, 16);
 
@@ -546,7 +551,7 @@ indexer* search_nearest_item2(/*in*/struct node *nd, /*in*/coord x, /*in*/coord 
 {
 	//indexer count_tmp, count = 0;
 	struct point tmp(x, y);
-	__declspec(align(16)) indexer* idxs_tmp = search_rect2(nd, x - radius, y - radius, x + radius, y + radius, intersection, count_items, scircle2, &tmp);
+	alignas(16) indexer* idxs_tmp = search_rect2(nd, x - radius, y - radius, x + radius, y + radius, intersection, count_items, scircle2, &tmp);
 	*dist = tmp.x;
 	return idxs_tmp;
 }

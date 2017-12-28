@@ -60,6 +60,7 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 	char tch[64];
 	sprintf_s(tch, 64, "CPUS = %u", cpus);
 #endif
+	cpus = 1;
 	lprintf(tch);
 
 	// calculate maximal size for adding leafs in iteration for malloc and realloc

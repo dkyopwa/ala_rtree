@@ -6,7 +6,9 @@
 #include "first.h"
 
 #include <xmmintrin.h>
-#include <intrin.h> 
+#ifdef _WIN
+#include <intrin.h>
+#endif
 
 //#define MINIMAL_DEBUG
 //#define FIND_V1
@@ -36,7 +38,7 @@ struct points_distanse_sse {
 	__m128 line_p1_y;
 };
 
-__declspec(align(16)) struct vector {
+alignas(16) struct vector {
 	float f1;
 	float f2;
 	float f3;
@@ -54,9 +56,9 @@ indexer search_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coor
 {
 	const size_t mem_size = 128;
 	unsigned mem_offset = 1;
-	__declspec(align(16)) struct node **stack_node = (struct node**)aligned_alloc(16, sizeof(struct node*) * mem_size * mem_offset);
+	alignas(16) struct node **stack_node = (struct node**)aligned_alloc(16, sizeof(struct node*) * mem_size * mem_offset);
 	unsigned stack_pos = 0;
-	__declspec(align(16)) indexer *stack_idx = (indexer*)aligned_alloc(16, sizeof(indexer) * mem_size * mem_offset);
+	alignas(16) indexer *stack_idx = (indexer*)aligned_alloc(16, sizeof(indexer) * mem_size * mem_offset);
 
 	//struct node *nd = m_nodes;
 
@@ -136,10 +138,20 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x; vec2 = p0.x, p0.y, p0.x, p0.y
 {
 	__m128 tmp[3];
+#ifdef _WIN
 	tmp[0] = {1.0, 2.0, 3.0, 4.0};
 	tmp[1] = { 1.0, 2.0, 3.0, 4.0 };
 	tmp[2] = { 1.0, 2.0, 3.0, 4.0 };
 	coord t3 = distance_sse_v5(vec1, vec2, tmp);
+#else
+	float *f1; f1 = (float*)&(tmp[0]);
+	f1[0] = 1.0; f1[1] = 2.0; f1[2] = 3.0; f1[3] = 4.0;
+	float *f2; f2 = (float*)&(tmp[1]);
+	f2[0] = 1.0; f2[1] = 2.0; f2[2] = 3.0; f2[3] = 4.0 ;
+	float *f3; f3 = (float*)&(tmp[2]);
+	f3[0] = 1.0; f3[1] = 2.0; f3[2] = 3.0; f3[3] = 4.0;
+	coord t3 = 0.0;
+#endif // _WIN
 
 	//coord t1 = distance_sse_v4(vec1, vec2);
 	register __m128 res2 = _mm_movehl_ps(*vec1, *vec1); // px, py, px, py
