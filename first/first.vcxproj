@@ -162,6 +162,7 @@
     <ClInclude Include="log.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="sort.h" />
+    <ClInclude Include="unimem.h" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="LICENSE" />

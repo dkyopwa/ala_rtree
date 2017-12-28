@@ -1,7 +1,7 @@
 ﻿#include <stdio.h>
-#include <malloc.h>
+//#include <malloc.h>
 #include <math.h>
-#include <stdlib.h>
+//#include <stdlib.h>
 #include <stdbool.h>
 #ifndef _WIN
 	#include <sys/time.h>
@@ -13,6 +13,7 @@
 	#include <windows.h>  
 	#include <process.h>    /* _beginthread, _endthread */  
 #endif
+#include "unimem.h"
 #include "first.h"
 
 struct test_data {
@@ -44,7 +45,7 @@ int main()
 	lprintf("Hello");
 
 	unsigned count_of_leafs = 0; // old: must to devide 3 without
-	__declspec(align(16)) unsigned *offsets_leafs = NULL;
+	alignas(16) unsigned *offsets_leafs = NULL;
 	unsigned count_shapes = 0;
 	struct leaf* lll = generate(&count_of_leafs, &offsets_leafs, &count_shapes);
 	//lprintf("Done"); _getch();  return 0;
@@ -75,7 +76,7 @@ int main()
 }
 
 /// generate test data
-__declspec(align(16)) struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes)
+struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes)
 {
 	FILE *f1;
 #ifndef _WIN
@@ -95,11 +96,11 @@ __declspec(align(16)) struct leaf* generate(unsigned *count, unsigned **offsets_
 	st = fread(&count_leafs, sizeof(unsigned), 1, f1);
 	printf("%u, leafs = %u\n", count1, count_leafs);
 	*count = count_leafs;
-	*offsets_leafs = (unsigned*)_aligned_malloc(sizeof(unsigned) * count1, 16);
+	*offsets_leafs = (unsigned*)aligned_alloc(16, sizeof(unsigned) * count1);
 	*count_shapes = count1;
 
 	// prepare for ramdom number
-	__declspec(align(16)) unsigned *numbers = (unsigned*)_aligned_malloc(sizeof(unsigned) * count1, 16);
+	alignas(16) unsigned *numbers = (unsigned*)aligned_alloc(16, sizeof(unsigned) * count1);
 	unsigned t2 = 0;
 	unsigned total_number = 0;
 	for (unsigned i = 0; i < count1; ++i) {
@@ -116,8 +117,8 @@ __declspec(align(16)) struct leaf* generate(unsigned *count, unsigned **offsets_
 		numbers[i] = t2;
 	}
 
-	__declspec(align(16)) struct leaf* res = NULL;
-	res = (struct leaf*)_aligned_malloc(sizeof(struct leaf) * count_leafs, 16);
+	alignas(16) struct leaf* res = NULL;
+	res = (struct leaf*)aligned_alloc(16, sizeof(struct leaf) * count_leafs);
 	if (!res)
 		return NULL;
 
@@ -199,10 +200,10 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	_getch();*/
 	const coord radius = 0.3;
 
-	__declspec(align(16)) indexer *idxs1 = (indexer*)_aligned_malloc(sizeof(indexer) * count, 16);
-	__declspec(align(16)) indexer *idxs2 = (indexer*)_aligned_malloc(sizeof(indexer) * count, 16);
-	__declspec(align(16)) coord *xx = (coord*)_aligned_malloc(sizeof(coord) * count, 16);
-	__declspec(align(16)) coord *yy = (coord*)_aligned_malloc(sizeof(coord) * count, 16);
+	alignas(16) indexer *idxs1 = (indexer*)aligned_alloc(16, sizeof(indexer) * count);
+	alignas(16) indexer *idxs2 = (indexer*)aligned_alloc(16, sizeof(indexer) * count);
+	alignas(16) coord *xx = (coord*)aligned_alloc(16, sizeof(coord) * count);
+	alignas(16) coord *yy = (coord*)aligned_alloc(16, sizeof(coord) * count);
 	for (unsigned i = 0; i < count; ++i) {
 		xx[i] = (rand() % ((int)((nd->x2 - nd->x1) * 10))) / 10.0 + nd->x1; // - (nd->x2 - nd->x1) / 2.0;
 		yy[i] = (rand() % ((int)((nd->y2 - nd->y1) * 10))) / 10.0 + nd->y1; //- (nd->y2 - nd->y1) / 2.0;
@@ -361,9 +362,9 @@ void find_test2(struct node *nd, const coord *xx, const coord *yy, const unsigne
 
 #else
 	// handler thread
-	__declspec(align(16)) uintptr_t *ptr1 = (uintptr_t*)_aligned_malloc(sizeof(uintptr_t) * cpus, 16);
+	alignas(16) uintptr_t *ptr1 = (uintptr_t*)aligned_alloc(16, sizeof(uintptr_t) * cpus);
 	//unsigned tun[32];
-	__declspec(align(16)) struct test_data *data = (struct test_data*)_aligned_malloc(sizeof(struct test_data) * cpus, 16);
+	alignas(16) struct test_data *data = (struct test_data*)aligned_alloc(16, sizeof(struct test_data) * cpus);
 	//unsigned *idx = (unsigned*)malloc(sizeof(unsigned) * (cpus + 1));
 
 	// prepare for separate
@@ -511,7 +512,7 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
-	__declspec(align(16)) indexer *idxs = NULL;
+	alignas(16) indexer *idxs = NULL;
 	indexer count = 0;
 	lprintf("start4");
 	idxs = search_in_circles(nd, 1000, 1000, 500.0, &count);

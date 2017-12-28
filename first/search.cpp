@@ -1,7 +1,8 @@
 #include <stdio.h>
-#include <malloc.h>
+//#include <malloc.h>
 #include <stdbool.h>
 #include <math.h>
+#include "unimem.h"
 #include "first.h"
 
 #include <xmmintrin.h>
@@ -53,9 +54,9 @@ indexer search_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coor
 {
 	const size_t mem_size = 128;
 	unsigned mem_offset = 1;
-	__declspec(align(16)) struct node **stack_node = (struct node**)_aligned_malloc(sizeof(struct node*) * mem_size * mem_offset, 16);
+	__declspec(align(16)) struct node **stack_node = (struct node**)aligned_alloc(16, sizeof(struct node*) * mem_size * mem_offset);
 	unsigned stack_pos = 0;
-	__declspec(align(16)) indexer *stack_idx = (indexer*)_aligned_malloc(sizeof(indexer) * mem_size * mem_offset, 16);
+	__declspec(align(16)) indexer *stack_idx = (indexer*)aligned_alloc(16, sizeof(indexer) * mem_size * mem_offset);
 
 	//struct node *nd = m_nodes;
 
@@ -827,7 +828,7 @@ indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, 
 	// memory for result
 	size_t mem_size = 256;
 	size_t count_mem = 1;
-	__declspec(align(16)) indexer* idxs = (indexer*)_aligned_malloc(sizeof(indexer) * mem_size * count_mem, 16);
+	alignas(16) indexer* idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * mem_size * count_mem);
 	indexer idx = 0;
 
 #ifdef MINIMAL_DEBUG
@@ -972,7 +973,7 @@ indexer* search_in_circles(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, 
 	// memory for result
 	size_t mem_size = 256;
 	size_t count_mem = 1;
-	__declspec(align(16)) indexer* idxs = (indexer*)_aligned_malloc(sizeof(indexer) * mem_size * count_mem, 16);
+	alignas(16) indexer* idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * mem_size * count_mem);
 	indexer idx = 0;
 
 	struct node *stack_node[64];

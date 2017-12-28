@@ -2,6 +2,7 @@
 	Project present like RTree
 	Created by Vladimir Nedved 2017
 	Apache License 2.0
+	file first.h
 */
 #pragma once
 
@@ -32,10 +33,10 @@ struct leaf {
 #endif
 
 struct center_st {
-	__declspec(align(16)) struct leaf** pos_leaf;
+	alignas(16) struct leaf** pos_leaf;
 	// unsigned *count_merged_pos_leafs;
-	__declspec(align(16)) coord *cx;
-	__declspec(align(16)) coord *cy;
+	alignas(16) coord *cx;
+	alignas(16) coord *cy;
 	unsigned count_shapes;
 #ifndef _WIN
 } __attribute__((aligned(16)));
@@ -64,7 +65,7 @@ struct center_st2 {
 struct center_node_st {
 	coord cx;
 	coord cy;
-	__declspec(align(16)) void *pos;
+	alignas(16) void *pos;
 #ifndef _WIN
 } __attribute__((aligned(16)));
 #else
@@ -79,9 +80,9 @@ struct branch {
 	struct leaf* leafs;
 #else
 	// new version if leafs
-	__declspec(align(16)) coord *leaf_x;
-	__declspec(align(16)) coord *leaf_y;
-	__declspec(align(16)) indexer *leaf_number;
+	alignas(16) coord *leaf_x;
+	alignas(16) coord *leaf_y;
+	alignas(16) indexer *leaf_number;
 	//__declspec(align(16)) indexer *ofst_leaf_n;
 #endif //OLD_LEAFS
 
@@ -89,9 +90,9 @@ struct branch {
 	/* coord *cx;
 	coord *cy;
 	*/
-	__declspec(align(16)) struct center_st2 *center;
+	alignas(16) struct center_st2 *center;
 	// end for find center
-	__declspec(align(16)) bool *merge_next_leaf;
+	alignas(16) bool *merge_next_leaf;
 	// boundary, calculate after separate
 	coord x_min;
 	coord y_min;
@@ -100,14 +101,14 @@ struct branch {
 	//struct center_node_st branch_center;
 
 	// length of segments for easier calculating
-	__declspec(align(16)) coord *length;
+	alignas(16) coord *length;
 
 	// boundary of shapes
-	__declspec(align(16)) coord *xsh_min;
-	__declspec(align(16)) coord *ysh_min;
-	__declspec(align(16)) coord *xsh_max;
-	__declspec(align(16)) coord *ysh_max;
-	__declspec(align(16)) indexer *offset;
+	alignas(16) coord *xsh_min;
+	alignas(16) coord *ysh_min;
+	alignas(16) coord *xsh_max;
+	alignas(16) coord *ysh_max;
+	alignas(16) indexer *offset;
 #ifndef _WIN
 } __attribute__((aligned(16)));
 #else
@@ -120,7 +121,7 @@ struct node {
 	coord y1;
 	coord x2;
 	coord y2;
-	__declspec(align(16)) void** child_node; // may be node (is_last_node = false) or branch (is_last_node = true)
+	alignas(16) void** child_node; // may be node (is_last_node = false) or branch (is_last_node = true)
 	unsigned count_child_nodes;
 	bool is_last_node;
 
@@ -132,8 +133,8 @@ struct node {
 #endif
 
 struct first_thr_st {
-	__declspec(align(16)) struct node* node_;
-	__declspec(align(16)) struct leaf* leafs_;
+	alignas(16) struct node* node_;
+	alignas(16) struct leaf* leafs_;
 	unsigned *offsets_leafs_;
 	unsigned count_leaf;
 	unsigned start_pos_leafs;
