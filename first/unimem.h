@@ -23,7 +23,10 @@ inline void _aligned_free(void* _block)
 inline void* _aligned_realloc(void *memblock, size_t size, size_t alignment)
 {
 	void *p = aligned_alloc(alignment, size);
-	memcpy(p, memblock, malloc_usable_size(memblock));
+	size_t sz = malloc_usable_size(memblock);
+	if (sz > size)
+		sz = size;
+	memcpy(p, memblock, sz);
 	free(memblock);
 	return p;
 }

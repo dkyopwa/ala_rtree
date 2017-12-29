@@ -454,7 +454,11 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 #endif //_WIN
 	lprintf(ch);
 #ifdef CALC_POINT
+#ifdef _WIN
 	sprintf_s(ch, 1024, "Near item dist = %f, idx = %u", dist, idxs3[0]);
+#else
+	snprintf(ch, 1024, "Near item dist = %f, idx = %u", dist, idxs3[0]);
+#endif //_WIN
 	lprintf(ch);
 #endif
 	if (idxs1)

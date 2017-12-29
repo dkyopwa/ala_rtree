@@ -10,7 +10,7 @@ CC=g++
 
 GDBFLAG=-ggdb
 CLDFLAGS = -lm -lpthread -std=c++0x
-TMP_CFLAGS= -c -Wall -march=native -pipe $(CLDFLAGS)
+TMP_CFLAGS= -c -Wall -march=native -pipe -E -D CALC_POINT $(CLDFLAGS)
 
 ifeq ($(BUILD_TYPE), )
 	BUILD_TYPE=debug

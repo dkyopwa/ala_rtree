@@ -351,7 +351,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 											cc.br = br;
 											cc.idx = i1;
 											struct point *center = (struct point*)data;
-											cc.center = struct point(*center);
+											cc.center = point(*center);
 											//cc.radius = (x_max - x_min) / 2.0;
 											cc.dist = FLT_MAX;
 											cc.curr_idx = -1;
