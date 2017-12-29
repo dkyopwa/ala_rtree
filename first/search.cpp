@@ -38,12 +38,12 @@ struct points_distanse_sse {
 	__m128 line_p1_y;
 };
 
-alignas(16) struct vector {
+/*alignas(16) struct vector {
 	float f1;
 	float f2;
 	float f3;
 	float f4;
-};
+};*/
 // ------------------------------- SERCHIG --------------------------------------
 /* bool search_callback(indexer idx, void *arg)
 {

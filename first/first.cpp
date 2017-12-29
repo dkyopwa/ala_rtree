@@ -1602,6 +1602,51 @@ struct node* separate_nodes(struct node* nd)
 		_aligned_free(positions2);
 	}
 
+	// update boundary of top node
+	coord x_max, y_max, x_min, y_min, tx_max, ty_max, tx_min, ty_min;
+	if (nd->is_last_node) {
+		// branch
+		x_min = ((struct branch*)nd->child_node[0])->x_min;
+		x_max = ((struct branch*)nd->child_node[0])->x_max;
+		y_min = ((struct branch*)nd->child_node[0])->y_min;
+		y_max = ((struct branch*)nd->child_node[0])->y_max;
+	}
+	else {
+		// node
+		x_min = ((struct node*)nd->child_node[0])->x1;
+		x_max = ((struct node*)nd->child_node[0])->x2;
+		y_min = ((struct node*)nd->child_node[0])->y1;
+		y_max = ((struct node*)nd->child_node[0])->y2;
+	}
+	for (indexer i = 1; i < nd->count_child_nodes; ++i) {
+		if (nd->is_last_node) {
+			// branch
+			tx_min = ((struct branch*)nd->child_node[i])->x_min;
+			tx_max = ((struct branch*)nd->child_node[i])->x_max;
+			ty_min = ((struct branch*)nd->child_node[i])->y_min;
+			ty_max = ((struct branch*)nd->child_node[i])->y_max;
+		}
+		else {
+			// node
+			tx_min = ((struct node*)nd->child_node[i])->x1;
+			tx_max = ((struct node*)nd->child_node[i])->x2;
+			ty_min = ((struct node*)nd->child_node[i])->y1;
+			ty_max = ((struct node*)nd->child_node[i])->y2;
+		}
+		if (tx_min < x_min)
+			x_min = tx_min;
+		if (tx_max > x_max)
+			x_max = tx_max;
+		if (ty_min < y_min)
+			y_min = ty_min;
+		if (ty_max > y_max)
+			y_max = ty_max;
+	}
+	nd->x1 = x_min;
+	nd->x2 = x_max;
+	nd->y1 = y_min;
+	nd->y2 = y_max;
+
 	return nd;
 	////////////////////////////////////////////////////////////////
 
