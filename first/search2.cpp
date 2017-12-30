@@ -16,7 +16,7 @@ struct point {
 	coord x;
 	coord y;
 	point(coord xx, coord yy) : x(xx), y(yy) {};
-	point() {};
+	point() : x(0.0), y(0.0) {};
 };
 
 struct calc_data {
@@ -32,7 +32,7 @@ struct calc_data {
 	indexer curr_idx;
 #endif // CALC POINT
 
-	calc_data(): center(0, 0) {};
+	calc_data(): br(NULL), idx(-1), radius(0.0), center(0, 0), curr_idx(-1) {};
 };
 
 /*
@@ -99,11 +99,11 @@ void add_branch(/*in*/struct branch* br, /*in/out*/size_t* mem_size, /*in/out*/s
 		(*idxs)[*idx] = br->leaf_number[br->offset[i1]];
 		(*idx)++;
 
-		indexer to_end;
+		/*indexer to_end;
 		if (i1 == br->count_shapes - 1)
 			to_end = br->count_leafs;
 		else
-			to_end = br->offset[i1 + 1];
+			to_end = br->offset[i1 + 1];*/
 	}
 }
 
@@ -182,12 +182,12 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	int stack_pos = 0;
 	indexer stack_idx[64];
 
-	coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0;
-	indexer tn = 0, tn1 = 0;
+	//coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0;
+	//indexer tn = 0, tn1 = 0;
 
 	indexer i = 0;
 
-	coord dist = 0.0;
+	//coord dist = 0.0;
 
 #ifdef CALC_POINT
 	coord tmp_dist = FLT_MAX;

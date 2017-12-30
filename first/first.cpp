@@ -539,12 +539,12 @@ void del_root()
 		//struct node* nd1 = NULL;
 		indexer i = 0;
 		alignas(16) struct branch *first_branch = NULL;
-		alignas(16) struct node* first_node = NULL;
+		//alignas(16) struct node* first_node = NULL;
 		alignas(16) struct node* stack_first_node[64];
-		alignas(16) struct node* stack_child_node[64];
+		//alignas(16) struct node* stack_child_node[64];
 		for (unsigned i = 0; i < 64; ++i) {
 			stack_first_node[i] = NULL;
-			stack_child_node[i] = NULL;
+			//stack_child_node[i] = NULL;
 		}
 		struct node *stack_node[64];
 		int stack_pos = 0;
@@ -1276,7 +1276,7 @@ struct node* separate_branches(struct node* nd)
 	indexer pos_start = 0;
 	alignas(16) struct boudary *positions1 = (struct boudary*)aligned_alloc(16, sizeof(struct boudary) * size_separate);
 	alignas(16) struct boudary *positions2 = (struct boudary*)aligned_alloc(16, sizeof(struct boudary) * size_separate);
-	unsigned tcbranches = cbranches;
+	//unsigned tcbranches = cbranches;
 	unsigned brinscope = cbranches;
 
 	positions2[0].idx1 = pos_start;
@@ -1288,7 +1288,7 @@ struct node* separate_branches(struct node* nd)
 	bool pos_pos = false; // false - used positions1, true = used positions2
 
 	for (unsigned i = 2; i <= size_separate; i = i << 2) {
-		tcbranches = cbranches / i; // ???
+		//tcbranches = cbranches / i; // ???
 		pos_pos = false;
 		for (k = 0; k < i >> 1; ++k) {
 			pos_start = positions2[k].idx1;
@@ -1319,7 +1319,7 @@ struct node* separate_branches(struct node* nd)
 			break;
 		}
 		pos_pos = true;
-		tcbranches = cbranches / (i * 2);  // ???
+		//tcbranches = cbranches / (i * 2);  // ???
 		for (k = 0; k < i; ++k) {
 			pos_start = positions1[k].idx1;
 			center_start = &(nd->center_child_node[pos_start]);
@@ -1456,25 +1456,25 @@ struct node* separate_nodes(struct node* nd)
 		indexer pos_start = 0;
 		alignas(16) struct boudary *positions1 = (struct boudary*)aligned_alloc(16, sizeof(struct boudary) * size_separate);
 		alignas(16) struct boudary *positions2 = (struct boudary*)aligned_alloc(16, sizeof(struct boudary) * size_separate);
-		unsigned tcnodes = cnodes;
+		//unsigned tcnodes = cnodes;
 		unsigned ndinscope = cnodes;
 
 		positions2[0].idx1 = pos_start;
 		positions2[0].idx2 = cnodes - 1;
 		//indexer j;
 		indexer k;
-		indexer ccount;
+		//indexer ccount;
 
 		bool pos_pos = false; // false - used positions1, true = used positions2
 
 		for (unsigned i = 2; i <= size_separate; i = i << 2) {
-			tcnodes = cnodes / i; // ???
+			//tcnodes = cnodes / i; // ???
 			pos_pos = false;
 			for (k = 0; k < i >> 1; ++k) {
 				pos_start = positions2[k].idx1;
 				center_start = &(nd->center_child_node[pos_start]);
 				ndinscope = positions2[k].idx2 - positions2[k].idx1 + 1;
-				ccount = 0;
+				//ccount = 0;
 
 				// sort shapes by x
 				//qsort(br->center, br->count_shapes, sizeof(struct center_st2), x_cmp);
@@ -1499,12 +1499,12 @@ struct node* separate_nodes(struct node* nd)
 				break;
 			}
 			pos_pos = true;
-			tcnodes = cnodes / (i * 2);  // ???
+			//tcnodes = cnodes / (i * 2);  // ???
 			for (k = 0; k < i; ++k) {
 				pos_start = positions1[k].idx1;
 				center_start = &(nd->center_child_node[pos_start]);
 				ndinscope = positions1[k].idx2 - positions1[k].idx1 + 1;
-				ccount = 0;
+				//ccount = 0;
 				qsort_node_centers_y(center_start, ndinscope);
 
 				positions2[k * 2].idx1 = pos_start;
@@ -1529,7 +1529,7 @@ struct node* separate_nodes(struct node* nd)
 
 		// prepare new nodes
 		alignas(16) struct node *nd1 = (struct node*)aligned_alloc(16, sizeof(struct node) * size_separate);
-		indexer total_count_br = 0;
+		//indexer total_count_br = 0;
 		for (unsigned i = 0; i < size_separate; ++i) {
 #ifdef OLD_LEAFS
 			struct leaf lf;

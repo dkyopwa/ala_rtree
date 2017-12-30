@@ -73,11 +73,11 @@ indexer search_rect(struct node *nd, coord x_min, coord y_min, coord x_max, coor
 		stack_pos++;
 		nd = (struct node*)nd->child_node[i];
 		if (nd->is_last_node) {
-			for (unsigned i = 0; i < nd->count_child_nodes; ++i) {
+			/*for (unsigned i = 0; i < nd->count_child_nodes; ++i) {
 				struct branch *br = (struct branch*)(nd->child_node)[i];
 				// find
 
-			}
+			}*/
 			flag_del_branches = true;
 
 			// return from stack
@@ -850,13 +850,13 @@ indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, 
 	int stack_pos = 0;
 	indexer stack_idx[64];
 
-	coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0;
-	indexer tn = 0, tn1 = 0;
+	//coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0;
+	//indexer tn = 0, tn1 = 0;
 
 	indexer i = 0;
 
-	coord dist = 0.0;
-/*	struct t_result tres;
+/*	coord dist = 0.0;
+	struct t_result tres;
 	coord q1 = nd->x2 - nd->x1;
 	coord q2 = nd->y2 - nd->y1;
 	tres.dist = sqrt(q1 * q1 + q2 * q2);
@@ -887,11 +887,11 @@ indexer* search_in_rect(struct node *nd, coord x_min, coord y_min, coord x_max, 
 #endif // OLD_LEAFS
 								idx++;
 
-								indexer to_end;
+								/*indexer to_end;
 								if (i1 == br->count_shapes - 1)
 									to_end = br->count_leafs;
 								else
-									to_end = br->offset[i1 + 1];
+									to_end = br->offset[i1 + 1];*/
 #ifdef MINIMAL_DEBUG
 								temp_counter1++;
 #endif
@@ -992,12 +992,13 @@ indexer* search_in_circles(/*in*/struct node *nd, /*in*/coord x, /*in*/coord y, 
 	int stack_pos = 0;
 	indexer stack_idx[64];
 
-	coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0, c1, c2, t1;
-	indexer tn = 0, tn1 = 0;
+	//coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0;
+	coord c1, c2, t1;
+	//indexer tn = 0, tn1 = 0;
 
 	indexer i = 0;
 
-	coord dist = 0.0;
+	//coord dist = 0.0;
 	coord radius2 = radius * radius;
 /*	struct t_result tres;
 	coord q1 = nd->x2 - nd->x1;

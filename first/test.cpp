@@ -450,7 +450,7 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	sprintf_s(ch, 1024, "end3 %lld vs %lld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %lld (count = %d) speed = %f", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3, (t4 - t3) * 100.0 / (t3 - t2));
 #else
 	clock_t t4 = clock();
-	snprintf(ch, 1024, "end3 %lld vs %lld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %lld (count = %d) speed = %f", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3, (t4 - t3) * 100.0 / (t3 - t2));
+	snprintf(ch, 1024, "end3 %ld vs %ld => %f (c1 = %u, c2 = %u, c4 = %u)\nend4 time = %ld (count = %d) speed = %f", t2 - t1, t3 - t2, (t3 - t2) * 100.0 / (t2 - t1), count1, count2, count4, t4 - t3, count3, (t4 - t3) * 100.0 / (t3 - t2));
 #endif //_WIN
 	lprintf(ch);
 #ifdef CALC_POINT
@@ -481,6 +481,7 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 		fprintf(f2, "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"\?>\n<svg version=\"1.1\" baseProfile=\"full\" xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:ev=\"http://www.w3.org/2001/xml-events\" height=\"10000px\"  width=\"10000px\">\n"); //  height=\"400px\"  width=\"400px\"
 		fprintf(f2, "\t<polygon points=\"100,100 1012,100 1012,1000 100,1000\" stroke-width=\"1\" stroke=\"rgb(50, 50, 150)\" fill=\"none\"/>\n");
+		*/
 		/*for (unsigned k = 0; k < count; ++k) {
 			unsigned i;
 			if (idxs[k] == (indexer)-1)
