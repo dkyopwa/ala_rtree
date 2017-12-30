@@ -199,15 +199,15 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	sprintf_s(ch1, 1024, "RADIUS = %f", radius);
 	lprintf(ch1);
 	_getch();*/
-	const coord radius = 0.3;
+	const coord radius = (coord)0.3;
 
 	alignas(16) indexer *idxs1 = (indexer*)aligned_alloc(16, sizeof(indexer) * count);
 	alignas(16) indexer *idxs2 = (indexer*)aligned_alloc(16, sizeof(indexer) * count);
 	alignas(16) coord *xx = (coord*)aligned_alloc(16, sizeof(coord) * count);
 	alignas(16) coord *yy = (coord*)aligned_alloc(16, sizeof(coord) * count);
 	for (unsigned i = 0; i < count; ++i) {
-		xx[i] = (rand() % ((int)((nd->x2 - nd->x1) * 10))) / 10.0 + nd->x1; // - (nd->x2 - nd->x1) / 2.0;
-		yy[i] = (rand() % ((int)((nd->y2 - nd->y1) * 10))) / 10.0 + nd->y1; //- (nd->y2 - nd->y1) / 2.0;
+		xx[i] = (coord)((rand() % ((int)((nd->x2 - nd->x1) * 10.0))) / 10.0 + nd->x1); // - (nd->x2 - nd->x1) / 2.0;
+		yy[i] = (coord)((rand() % ((int)((nd->y2 - nd->y1) * 10.0))) / 10.0 + nd->y1); //- (nd->y2 - nd->y1) / 2.0;
 	}
 
 	lprintf("start 1");

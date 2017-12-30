@@ -204,7 +204,7 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 				// length
 				coord cx = tbr->leaf_x[j - 1] - tbr->leaf_x[j];
 				coord cy = tbr->leaf_y[j - 1] - tbr->leaf_y[j];
-				tbr->length[j - 1] = sqrt(cx * cx + cy * cy);
+				tbr->length[j - 1] = (coord)sqrt(cx * cx + cy * cy);
 			}
 #endif // OLD_LEAFS
 

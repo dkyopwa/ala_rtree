@@ -112,7 +112,7 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 		//coord t2 = p->y - line_p0->y;
 		coord t1 = wx;
 		coord t2 = wy;
-		return sqrt(t1 * t1 + t2 * t2);
+		return (coord)sqrt(t1 * t1 + t2 * t2);
 	}
 
 	c2 = vx * vx + vy * vy;
@@ -120,7 +120,7 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 		//return sqrt(pow(fabs(p->x - line_p1->x), 2) + pow(fabs(p->y - line_p1->y), 2));
 		coord t1 = p->x - line_p1->x;
 		coord t2 = p->y - line_p1->y;
-		return sqrt(t1 * t1 + t2 * t2);
+		return (coord)sqrt(t1 * t1 + t2 * t2);
 	}
 
 	b = c1 / c2;
@@ -130,7 +130,7 @@ coord distance(struct point *p, struct point *line_p0, struct point *line_p1)
 	//return sqrt(pow(fabs(p->x - pbx), 2) + pow(fabs(p->y - pby), 2));
 	coord t1 = p->x - pbx;
 	coord t2 = p->y - pby;
-	return sqrt(t1 * t1 + t2 * t2);
+	return (coord)sqrt(t1 * t1 + t2 * t2);
 }
 
 /// calculate distance from point to line
@@ -196,7 +196,7 @@ coord distance_sse_v3(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 	__m128 res15 = _mm_sqrt_ss(res14);
 	//return sqrt(t1 * t1 + t2 * t2);
 	return *(float*)&res15; */
-	coord t2 = sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	coord t2 = (coord)sqrt(*((float*)&res12) + ((float*)&res12)[1]);
 	if (t3 != t2)
 		return t2;
 	return t2;
@@ -228,7 +228,7 @@ coord distance_sse_v2(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 /*		coord t1 = wx;
 		coord t2 = wy;
 		return sqrt(t1 * t1 + t2 * t2); */
-		coord t1 = sqrt(((float*)&res4)[3]);
+		coord t1 = (coord)sqrt(((float*)&res4)[3]);
 	/*	coord t2 = distance_sse_v6(vec1, vec2);
 		if (t1 != t2)
 			return t1;*/
@@ -251,7 +251,7 @@ coord distance_sse_v2(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 		/*__m128 res81 = _mm_shuffle_ps(res7, res7, 225);
 		__m128 res82 = _mm_add_ss(res8, res81); */
 		//return sqrt(t1 * t1 + t2 * t2);
-		coord t1 = sqrt(*((float*)&res8) + ((float*)&res8)[1]);
+		coord t1 = (coord)sqrt(*((float*)&res8) + ((float*)&res8)[1]);
 	/*	coord t2 = distance_sse_v6(vec1, vec2);
 		if (t1 != t2)
 			return t1;*/
@@ -277,7 +277,7 @@ coord distance_sse_v2(__m128 *vec1, __m128 *vec2) // vec1 = p1.x, p1.y, p.x, p.x
 	__m128 res15 = _mm_sqrt_ss(res14);
 	//return sqrt(t1 * t1 + t2 * t2);
 	return *(float*)&res15; */
-	coord t1 = sqrt(*((float*)&res12) + ((float*)&res12)[1]);
+	coord t1 = (coord)sqrt(*((float*)&res12) + ((float*)&res12)[1]);
 /*	coord t2 = distance_sse_v6(vec1, vec2);
 	if (t1 != t2)
 		return t1;*/
@@ -470,7 +470,7 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 	//tres.dist = sqrt(pow(nd->x2 - nd->x1, 2) + pow(nd->y2 - nd->y1, 2));
 	coord q1 = nd->x2 - nd->x1;
 	coord q2 = nd->y2 - nd->y1;
-	tres.dist = sqrt(q1 * q1 + q2 * q2);
+	tres.dist = (coord)sqrt(q1 * q1 + q2 * q2);
 	tres.idx = (indexer)-1;
 
 	while (i < nd->count_child_nodes) {
@@ -535,7 +535,7 @@ indexer search_point_sse(struct node *nd, coord x, coord y, coord radius)
 										coord c2 = br->leafs[k].y - y;
 										dist = sqrt(c1 * c1 + c2 * c2);
 										*/
-										dist = sqrt(t1);
+										dist = (coord)sqrt(t1);
 									}
 									if (dist < tres.dist) {
 										tres.dist = dist;
@@ -645,7 +645,7 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 	//tres.dist = sqrt(pow(nd->x2 - nd->x1, 2) + pow(nd->y2 - nd->y1, 2));
 	coord q1 = nd->x2 - nd->x1;
 	coord q2 = nd->y2 - nd->y1;
-	tres.dist = sqrt(q1 * q1 + q2 * q2);
+	tres.dist = (coord)sqrt(q1 * q1 + q2 * q2);
 	tres.idx = (indexer)-1;
 
 	while (i < nd->count_child_nodes) {
@@ -735,7 +735,7 @@ indexer search_point(struct node *nd, coord x, coord y, coord radius)
 								coord c2 = br->leafs[k].y - y;
 								dist = sqrt(c1 * c1 + c2 * c2);
 								*/
-								dist = sqrt(t1);
+								dist = (coord)sqrt(t1);
 							}
 							if (dist < tres.dist) {
 								tres.dist = dist;

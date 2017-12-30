@@ -53,7 +53,7 @@ coord distance2(struct point *p, struct point *line_p0, struct point *line_p1)
 		//coord t2 = p->y - line_p0->y;
 		coord t1 = wx;
 		coord t2 = wy;
-		return sqrt(t1 * t1 + t2 * t2);
+		return (coord)sqrt(t1 * t1 + t2 * t2);
 	}
 
 	c2 = vx * vx + vy * vy;
@@ -61,7 +61,7 @@ coord distance2(struct point *p, struct point *line_p0, struct point *line_p1)
 		//return sqrt(pow(fabs(p->x - line_p1->x), 2) + pow(fabs(p->y - line_p1->y), 2));
 		coord t1 = p->x - line_p1->x;
 		coord t2 = p->y - line_p1->y;
-		return sqrt(t1 * t1 + t2 * t2);
+		return (coord)sqrt(t1 * t1 + t2 * t2);
 	}
 
 	b = c1 / c2;
@@ -71,7 +71,7 @@ coord distance2(struct point *p, struct point *line_p0, struct point *line_p1)
 	//return sqrt(pow(fabs(p->x - pbx), 2) + pow(fabs(p->y - pby), 2));
 	coord t1 = p->x - pbx;
 	coord t2 = p->y - pby;
-	return sqrt(t1 * t1 + t2 * t2);
+	return (coord)sqrt(t1 * t1 + t2 * t2);
 }
 
 /*
@@ -491,7 +491,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 			return false;
 		}
 #else
-		cc->dist = sqrt((cc->br->leaf_x[k] - pc.x) * (cc->br->leaf_x[k] - pc.x) + (cc->br->leaf_y[k] - pc.y) + (cc->br->leaf_y[k] - pc.y));
+		cc->dist = (coord)sqrt((cc->br->leaf_x[k] - pc.x) * (cc->br->leaf_x[k] - pc.x) + (cc->br->leaf_y[k] - pc.y) + (cc->br->leaf_y[k] - pc.y));
 		cc->curr_idx = cc->br->leaf_number[cc->br->offset[cc->idx]];
 		return false; // because point
 #endif
