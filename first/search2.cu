@@ -159,6 +159,39 @@ bool init_cuda_device(int deviceID, struct node* nd)
 			nd = (struct node*)nd->child_node[i];
 		}
 	}
+	// copy data of branches to device
+	for (indexer i = 0; i < count_br; ++i)
+	{
+		void *data_ptr = tbr[i].leaf_x;
+		er1 = cudaMalloc((void**)&(tbr[i].leaf_x), sizeof(coord) * tbr[i].count_leafs);
+		er1 = cudaMemcpy(tbr[i].leaf_x, data_ptr, sizeof(coord) * tbr[i].count_leafs, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].leaf_y;
+		er1 = cudaMalloc((void**)&(tbr[i].leaf_y), sizeof(coord) * tbr[i].count_leafs);
+		er1 = cudaMemcpy(tbr[i].leaf_y, data_ptr, sizeof(coord) * tbr[i].count_leafs, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].leaf_number;
+		er1 = cudaMalloc((void**)&(tbr[i].leaf_number), sizeof(indexer) * tbr[i].count_leafs);
+		er1 = cudaMemcpy(tbr[i].leaf_number, data_ptr, sizeof(indexer) * tbr[i].count_leafs, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].merge_next_leaf;
+		er1 = cudaMalloc((void**)&(tbr[i].merge_next_leaf), sizeof(bool) * tbr[i].count_leafs);
+		er1 = cudaMemcpy(tbr[i].merge_next_leaf, data_ptr, sizeof(bool) * tbr[i].count_leafs, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].xsh_min;
+		er1 = cudaMalloc((void**)&(tbr[i].xsh_min), sizeof(coord) * tbr[i].count_shapes);
+		er1 = cudaMemcpy(tbr[i].xsh_min, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].xsh_max;
+		er1 = cudaMalloc((void**)&(tbr[i].xsh_max), sizeof(coord) * tbr[i].count_shapes);
+		er1 = cudaMemcpy(tbr[i].xsh_max, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].ysh_min;
+		er1 = cudaMalloc((void**)&(tbr[i].ysh_min), sizeof(coord) * tbr[i].count_shapes);
+		er1 = cudaMemcpy(tbr[i].ysh_min, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].ysh_max;
+		er1 = cudaMalloc((void**)&(tbr[i].ysh_max), sizeof(coord) * tbr[i].count_shapes);
+		er1 = cudaMemcpy(tbr[i].ysh_max, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice);
+		data_ptr = tbr[i].offset;
+		er1 = cudaMalloc((void**)&(tbr[i].offset), sizeof(indexer) * tbr[i].count_shapes);
+		er1 = cudaMemcpy(tbr[i].offset, data_ptr, sizeof(indexer) * tbr[i].count_shapes, cudaMemcpyHostToDevice);
+	}
+
+	// copy branches to device
 	struct branch *dev_br = NULL;
 	er1 = cudaMalloc((void**)&dev_br, sizeof(struct branch) * count_br);
 	er1 = cudaMemcpy(dev_br, tbr, sizeof(struct branch) * count_br, cudaMemcpyHostToDevice);
@@ -203,7 +236,7 @@ bool init_cuda_device(int deviceID, struct node* nd)
 		er1 = cudaMalloc((void**)&dev_nd, sizeof(struct node*) * count1[k1]); // tnd->count_child_nodes);
 		cudaMemcpy(dev_nd, to_dev_nd[k1], sizeof(struct node) * count1[k1], cudaMemcpyHostToDevice);
 		dev_nd_prev = dev_nd;
-		continue;
+	/*	continue;
 
 		indexer k3 = 0;
 		for (unsigned k2 = 0; k2 < count1[k1]; ++k2) {
@@ -218,7 +251,7 @@ bool init_cuda_device(int deviceID, struct node* nd)
 		// copy to device
 		//cudaMemcpy(dev_nd, to_dev_nd[j]->child_node[0], sizeof(struct node*) * count, cudaMemcpyHostToDevice);
 		// pointer to child_node on device
-	/*	er1 = cudaMalloc((void**)&dev_nd, sizeof(void*) * count);
+		er1 = cudaMalloc((void**)&dev_nd, sizeof(void*) * count);
 		to_dev_nd[j]->child_node = (void**)dev_nd;
 		// copy to device child_node
 		//cudaMemcpy(dev_nd, to_dev_nd[j]->child_node, sizeof(void*) * count, cudaMemcpyHostToDevice);
@@ -244,6 +277,9 @@ bool init_cuda_device(int deviceID, struct node* nd)
 				count += ((struct node*)(tnd->child_node[k]))->count_child_nodes;
 			}
 		tnd = (struct node*)(tnd->child_node[0]);*/
+	}
+	for (int k1 = pos; k1 >= 0; --k1) {
+		_aligned_free(to_dev_nd[k1]);
 	}
 
 	// allocating memory for root
