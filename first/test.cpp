@@ -38,6 +38,7 @@ struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count
 void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
+void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 
 // ---------------------------------------- TEST -------------------------------------------
 
@@ -56,9 +57,10 @@ int main()
 	if (nd) {
 		// testing
 		lprintf("start");
-		//try_find(nd, lll, count_of_leafs);
-		try_find2(nd, lll, count_of_leafs);
-		//try_find3(nd, lll, count_of_leafs);
+		////try_find(nd, lll, count_of_leafs);
+		//try_find2(nd, lll, count_of_leafs);
+		////try_find3(nd, lll, count_of_leafs);
+		//try_find4(nd, lll, count_of_leafs);
 		lprintf("end");
 	}
 
@@ -579,4 +581,44 @@ void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 	if (idxs)
 		_aligned_free(idxs);
+}
+
+void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
+{
+	/*float *fl_x = (float*)malloc(sizeof(float) * 3600 * 1800);
+	float *fl_y = (float*)malloc(sizeof(float) * 3600 * 1800);
+	for (float xi = -179.9; xi < 180.0; xi += 0.1) {
+		for (float yi = -89.9; yi < 90.0; yi += 0.1) {
+			fl_x[xi * 3600 + yi] = xi;
+			fl_y[xi * 3600 + yi] = yi;
+		}
+	}*/
+	indexer count_items;
+	coord dist, dd, mind, maxd;
+	unsigned i = 0;
+	clock_t t1 = clock();
+	for (float yi = -89.9; yi < 90.0; yi += 0.1, ++i) {
+		clock_t t11 = clock();
+		dd = 0.0;
+		mind = 9999999999.9;
+		maxd = 0.0;
+		for (float xi = -180.9; xi < 180.5; xi += 0.1) {
+			indexer *idxs = search_nearest_item2(nd, xi, yi, 1.0, true, &count_items, &dist);
+			dd += dist;
+			if (count_items > 1)
+				printf("Error %f, %f\n", xi, yi);
+			if (dist > maxd)
+				maxd = dist;
+			if (dist < mind)
+				mind = dist;
+			_aligned_free(idxs);
+		}
+		clock_t t22 = clock();
+		printf("Line %u: time = %u ms, min dist = %f, max dist = %f, avg dist = %f\n", i, t22 - t11, mind, maxd, dd / 3598.0);
+	}
+	clock_t t2 = clock();
+
+
+	/* free(fl_y);
+	free(fl_x); */
 }

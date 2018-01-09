@@ -38,6 +38,11 @@
 #include <poll.h>
 */
 
+#ifdef USE_CUDA
+extern "C" bool init_cuda_device(int deviceID = -1, struct node* nd = NULL);
+extern "C" bool destroy_cuda_device();
+#endif //USE_CUDA
+
 // globale variables
 struct node* m_nodes = NULL;
 //struct center_node_st* m_branch_center = NULL;
@@ -324,6 +329,13 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 			}
 		}*/
 #endif // PRINT_SVG
+
+#ifdef USE_CUDA
+		bool er = init_cuda_device(-1, m_nodes);
+		lprintf(er ? "Done 2" : "Cuda error");
+		destroy_cuda_device();
+#endif // USE_CUDA
+
 		return m_nodes;
 	}
 
@@ -716,7 +728,7 @@ struct node* separate(struct node* nd)
 			size_separate = (size_t)pow(2, t2 - 1);
 		else
 			size_separate = (size_t)pow(2, t2);
-		printf("Max size = %zu\n", size_separate);
+		printf("Max branches size = %zu\n", size_separate);
 
 		indexer cleafs = br->count_leafs;
 		indexer cshapes = br->count_shapes;

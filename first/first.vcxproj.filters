@@ -54,4 +54,7 @@
       <Filter>Файлы исходного кода</Filter>
     </MASM>
   </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="search2.cu" />
+  </ItemGroup>
 </Project>
