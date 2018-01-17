@@ -463,8 +463,8 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 #endif
 
 #ifdef CALC_POINT
-	idxs[0] = tmp_idx;
 	if (data) {
+		idxs[0] = tmp_idx;
 		struct point *center = (struct point*)data;
 		center->x = tmp_dist;
 	}
