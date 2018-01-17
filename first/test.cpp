@@ -35,6 +35,8 @@ void find_thread(void *params);
 #endif
 /// generate data for test
 struct leaf* generate(unsigned *count, unsigned **offsets_leafs, unsigned *count_shapes);
+struct leaf* automatic_generate(/*out*/unsigned *count, /*out*/unsigned **offsets_leafs, /*out*/unsigned *count_shapes, /*in*/unsigned max_count_shapes = 10000000, /*in*/unsigned max_points_in_shapes = 10);
+
 void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
@@ -57,7 +59,8 @@ int main()
 	unsigned count_of_leafs = 0; // old: must to devide 3 without
 	alignas(16) unsigned *offsets_leafs = NULL;
 	unsigned count_shapes = 0;
-	struct leaf* lll = generate(&count_of_leafs, &offsets_leafs, &count_shapes);
+	struct leaf* lll = automatic_generate(&count_of_leafs, &offsets_leafs, &count_shapes);
+	//struct leaf* lll = generate(&count_of_leafs, &offsets_leafs, &count_shapes);
 	//lprintf("Done"); _getch();  return 0;
 
 	struct node* nd = create_rtree(lll, count_of_leafs, offsets_leafs, count_shapes);
@@ -87,6 +90,58 @@ int main()
 #endif
 
 	return 0;
+}
+
+struct leaf* automatic_generate(/*out*/unsigned *count, /*out*/unsigned **offsets_leafs, /*out*/unsigned *count_shapes, /*in*/unsigned max_count_shapes, /*in*/unsigned max_points_in_shapes)
+{
+	unsigned b = (unsigned)sqrt(max_count_shapes / 2.0); //707; // 707 2236
+	unsigned a = b * 2;
+	coord len = 360.0 / b / 4.0;
+	*count_shapes = a * b;
+	unsigned total_count = 0;
+	unsigned tcount = 0;
+	indexer big_number = 1;
+
+	struct leaf *ret_leafs = (struct leaf*)aligned_alloc(16, sizeof(struct leaf) * a * b * (max_points_in_shapes + 1));
+	*offsets_leafs = (unsigned*)aligned_alloc(16, sizeof(unsigned) * a * b);
+
+	//struct data *dt = (struct data*)malloc(sizeof(struct data) * count);
+	//struct point tpts;
+	coord x, y, xc, yc;
+	coord delta_x = 359.9 / a, delta_y = 179.9 / b;
+	//unsigned idx;
+
+	for (unsigned i = 0; i < a; ++i) {
+		xc = -179.95 + delta_x * i;
+		for (unsigned j = 0; j < b; ++j) {
+			//idx = i + j * a;
+			tcount = rand() % max_points_in_shapes + 1;
+
+			//dt[idx].count = tcount;
+			//dt[idx].pts = (struct point*)malloc(sizeof(struct point) * tcount);
+
+			for (unsigned k = 0; k < tcount; ++k) {
+				yc = -89.95 + delta_y * j;
+
+				coord alpha = (360.0 / tcount) * k * 2 * PI / 360.0;
+				coord tlen = rand() % 2 + 1;
+				x = xc + tlen * cos(alpha);
+				y = yc + tlen * sin(alpha);
+
+				ret_leafs[total_count].x = x;
+				ret_leafs[total_count].y = y;
+				ret_leafs[total_count].number = big_number;
+
+				total_count++;
+			}
+			(*offsets_leafs)[j + i * b] = tcount;
+			big_number++;
+		}
+	}
+	*count = total_count;
+
+	ret_leafs = (struct leaf*)_aligned_realloc(ret_leafs, total_count * sizeof(struct leaf), 16);
+	return ret_leafs;
 }
 
 /// generate test data
@@ -636,11 +691,12 @@ void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
-	indexer count_items1, count_items2;
+	indexer count_items1 = 0, count_items2 = 0;
 	coord dist;
-	indexer *idxs1 = search_rect2(nd, -55, -59, -54, -58, false, &count_items1);
-	indexer *idxs2 = cuda_search_rect2(nd, -55, -59, -54, -58, false, &count_items2);
-
+	indexer *idxs1 = search_rect2(nd, -55, -59, -54.5, -58.5, false, &count_items1);
+#ifdef USE_CUDA
+	indexer *idxs2 = cuda_search_rect2(nd, -55, -59, -54.5, -58.5, false, &count_items2);
+#endif
 	if (count_items1 != count_items2)
 		printf("Error in count items: %u vs %u\n", count_items1, count_items2);
 
@@ -648,11 +704,15 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	for (indexer i = 0; i < count_items1; ++i)
 		printf("%u\n", idxs1[i]);
 
+#ifdef USE_CUDA
 	printf("\n\n\nRESULT 2\n");
 	for (indexer i = 0; i < count_items2; ++i)
 		printf("%u\n", idxs2[i]);
+#endif
 	*/
 
+#ifdef USE_CUDA
 	_aligned_free(idxs2);
+#endif
 	_aligned_free(idxs1);
 }

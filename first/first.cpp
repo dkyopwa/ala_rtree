@@ -446,6 +446,13 @@ void init_root(const void* p) {
 	tbr->merge_next_leaf = NULL;
 	tbr->curr_mem_pos = 0;
 	tbr->alloc_mem_times = 0;
+	tbr->center = NULL;
+	tbr->length = NULL;
+	tbr->xsh_max = NULL;
+	tbr->xsh_min = NULL;
+	tbr->ysh_max = NULL;
+	tbr->ysh_min = NULL;
+	tbr->offset = NULL;
 #ifdef OLD_LEAFS
 	tbr->leafs =  NULL;
 #else
@@ -506,6 +513,13 @@ void init_root2(struct node *nd, coord x, coord y) {
 	tbr->merge_next_leaf = NULL;
 	tbr->curr_mem_pos = 0;
 	tbr->alloc_mem_times = 0;
+	tbr->center = NULL;
+	tbr->length = NULL;
+	tbr->xsh_max = NULL;
+	tbr->xsh_min = NULL;
+	tbr->ysh_max = NULL;
+	tbr->ysh_min = NULL;
+	tbr->offset = NULL;
 #ifdef OLD_LEAFS
 	tbr->leafs = NULL;
 #else
@@ -531,20 +545,32 @@ void del_root()
 	alignas(16) struct node *nd = m_nodes;
 
 	if (nd->is_last_node) {
+		alignas(16) struct branch *first_branch = NULL;
 		for (unsigned i = 0; i < nd->count_child_nodes; ++i) {
 			alignas(16) struct branch *br = (struct branch*)(nd->child_node)[i];
-			if (br->merge_next_leaf)
-				_aligned_free(br->merge_next_leaf);
-#ifdef OLD_LEADS
-			if (br->leafs)
-				_aligned_free(br->leafs);
+			if (!first_branch || br < first_branch)
+				first_branch = br;
+			_aligned_free(br->merge_next_leaf);
+			//free(br->center);
+#ifdef OLD_LEAFS
+			_aligned_free(br->leafs);
 #else
 #endif // OLD_LEAFS
-			if (br->length)
-				_aligned_free(br->length);
+			_aligned_free(br->length);
+			// boundary
+			_aligned_free(br->xsh_max);
+			_aligned_free(br->xsh_min);
+			_aligned_free(br->ysh_max);
+			_aligned_free(br->ysh_min);
+			_aligned_free(br->offset);
+			// leafs
+			_aligned_free(br->leaf_x);
+			_aligned_free(br->leaf_y);
+			_aligned_free(br->leaf_number);
 		}
-		_aligned_free((struct branch*)nd->child_node[0]);
 		_aligned_free(nd->child_node);
+		_aligned_free(nd->center_child_node);
+		_aligned_free(first_branch);
 		_aligned_free(nd);
 		//free(m_nodes->child_node);
 		//free(m_nodes);
@@ -1020,7 +1046,7 @@ bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_
 	for (unsigned i = 0; i < count_cpus; ++i) {
 		ftst[i].leafs_ = leafs;
 		ftst[i].node_ = &(nd[i]);
-		ftst[i].offsets_leafs_ = &(offsets_leafs[leafs[idx[i]].number]);
+		ftst[i].offsets_leafs_ = &(offsets_leafs[idx[i]]); //&(offsets_leafs[leafs[idx[i]].number]);
 		ftst[i].count_leaf = idx[i + 1] - idx[i];
 		ftst[i].start_pos_leafs = idx[i];
 		
