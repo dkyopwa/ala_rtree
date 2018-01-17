@@ -39,6 +39,14 @@ void try_find(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
+#ifdef USE_CUDA
+extern "C"
+#if defined(CALC_CIRCLE) || defined(CALC_POINT)
+/* searchin items in selected rectangle on cuda device */
+indexer* cuda_search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
+#endif // CALC_POINT
+void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
+#endif // USE_CUDA
 
 // ---------------------------------------- TEST -------------------------------------------
 
@@ -61,6 +69,9 @@ int main()
 		//try_find2(nd, lll, count_of_leafs);
 		////try_find3(nd, lll, count_of_leafs);
 		//try_find4(nd, lll, count_of_leafs);
+#ifdef USE_CUDA
+		try_find5_cuda(nd, lll, count_of_leafs);
+#endif //USE_CUDA
 		lprintf("end");
 	}
 
@@ -621,4 +632,27 @@ void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 	/* free(fl_y);
 	free(fl_x); */
+}
+
+void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
+{
+	indexer count_items1, count_items2;
+	coord dist;
+	indexer *idxs1 = search_rect2(nd, -55, -59, -54, -58, false, &count_items1);
+	indexer *idxs2 = cuda_search_rect2(nd, -55, -59, -54, -58, false, &count_items2);
+
+	if (count_items1 != count_items2)
+		printf("Error in count items: %u vs %u\n", count_items1, count_items2);
+
+	/*printf("RESULT 1\n");
+	for (indexer i = 0; i < count_items1; ++i)
+		printf("%u\n", idxs1[i]);
+
+	printf("\n\n\nRESULT 2\n");
+	for (indexer i = 0; i < count_items2; ++i)
+		printf("%u\n", idxs2[i]);
+	*/
+
+	_aligned_free(idxs2);
+	_aligned_free(idxs1);
 }

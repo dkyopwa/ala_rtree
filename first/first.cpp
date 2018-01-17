@@ -333,7 +333,6 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 #ifdef USE_CUDA
 		bool er = init_cuda_device(-1, m_nodes);
 		lprintf(er ? "Done 2" : "Cuda error");
-		destroy_cuda_device();
 #endif // USE_CUDA
 
 		return m_nodes;
@@ -525,6 +524,9 @@ void del_root()
 	//struct node **stack_node = (struct node**)malloc(sizeof(struct node*) * mem_size * mem_offset);
 	//unsigned stack_pos = 0;
 	//indexer *stack_idx = (indexer*)malloc(sizeof(indexer) * mem_size * mem_offset);
+#ifdef USE_CUDA
+	destroy_cuda_device();
+#endif
 
 	alignas(16) struct node *nd = m_nodes;
 
