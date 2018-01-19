@@ -59,9 +59,16 @@ int main()
 	unsigned count_of_leafs = 0; // old: must to devide 3 without
 	alignas(16) unsigned *offsets_leafs = NULL;
 	unsigned count_shapes = 0;
-	struct leaf* lll = automatic_generate(&count_of_leafs, &offsets_leafs, &count_shapes);
+	struct leaf* lll = automatic_generate(&count_of_leafs, &offsets_leafs, &count_shapes, 5000000);
 	//struct leaf* lll = generate(&count_of_leafs, &offsets_leafs, &count_shapes);
-	//lprintf("Done"); _getch();  return 0;
+
+	char ch[1024];
+#ifdef _WIN
+	sprintf_s(ch, 1024, "Shapes = %u, leafs = %u\n", count_shapes, count_of_leafs);
+#else
+	snprintf(ch, 1024, "Shapes = %u, leafs = %u\n", count_shapes, count_of_leafs);
+#endif // WIN
+	lprintf(ch);
 
 	struct node* nd = create_rtree(lll, count_of_leafs, offsets_leafs, count_shapes);
 
@@ -115,7 +122,7 @@ struct leaf* automatic_generate(/*out*/unsigned *count, /*out*/unsigned **offset
 		xc = -179.95 + delta_x * i;
 		for (unsigned j = 0; j < b; ++j) {
 			//idx = i + j * a;
-			tcount = rand() % max_points_in_shapes + 1;
+			tcount = rand() % (max_points_in_shapes - 1) + 1;
 
 			//dt[idx].count = tcount;
 			//dt[idx].pts = (struct point*)malloc(sizeof(struct point) * tcount);
@@ -134,6 +141,8 @@ struct leaf* automatic_generate(/*out*/unsigned *count, /*out*/unsigned **offset
 
 				total_count++;
 			}
+			//if (tcount < 2)
+			//	printf("BIG = %u, tcount = %u\n", big_number, tcount);
 			(*offsets_leafs)[j + i * b] = tcount;
 			big_number++;
 		}
@@ -693,23 +702,76 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
 	indexer count_items1 = 0, count_items2 = 0;
 	coord dist;
-	indexer *idxs1 = search_rect2(nd, -55, -59, -54.5, -58.5, false, &count_items1);
+	indexer *idxs1 = search_rect2(nd, -1, 1, 1, 1.5, false, &count_items1); //-180, -87, 180, -86.6
 #ifdef USE_CUDA
-	indexer *idxs2 = cuda_search_rect2(nd, -55, -59, -54.5, -58.5, false, &count_items2);
+	indexer *idxs2 = cuda_search_rect2(nd, -1, 1, 1, 1.5, false, &count_items2);
 #endif
-	if (count_items1 != count_items2)
+	if (count_items1 != count_items2 && count_items2 != 99999) {
 		printf("Error in count items: %u vs %u\n", count_items1, count_items2);
 
-	/*printf("RESULT 1\n");
-	for (indexer i = 0; i < count_items1; ++i)
-		printf("%u\n", idxs1[i]);
-
+		printf("RESULT 1\n");
+		for (indexer i = 0; i < count_items1; ++i)
+			printf("%u\n", idxs1[i]);
+/*		unsigned start = 0, stop = 0;
+		bool flag = false;
+		for (indexer i = 0; i < count_items1; ++i) {
+			start = 0; stop = 0;
+			for (unsigned j = 0; j < count_of_leafs; ++j) {
+				if (lll[j].number == idxs1[i]) {
+					if (!start)
+						start = j;
+					stop = j + 1;
+				}
+				if (lll[j].number != idxs1[i] && start && stop)
+					break;
+			}
+			//if (stop - 1 == start)
+			//	printf("Error shape N %u\n", idxs1[i]);
+			for (unsigned k = start; k < stop; ++k) {
+				if (lll[k].x > -1 && lll[k].x < 1 && lll[k].y > 1 && lll[k].y < 1.5) {
+					flag = true;
+					break;
+				}
+			}
+			if (!flag)
+				for (unsigned k = start; k < stop; ++k)
+					printf("IDX 1: %u (%u): x = %f, y = %f\n", idxs1[i], lll[k].number, lll[k].x, lll[k].y);
+			flag = false;
+		}
+		*/
 #ifdef USE_CUDA
-	printf("\n\n\nRESULT 2\n");
-	for (indexer i = 0; i < count_items2; ++i)
-		printf("%u\n", idxs2[i]);
+		printf("\n\n\nRESULT 2\n");
+		for (indexer i = 0; i < count_items2; ++i)
+			printf("%u\n", idxs2[i]);
+	/*	for (indexer i = 0; i < count_items2; ++i) {
+			start = 0; stop = 0;
+			for (unsigned j = 0; j < count_of_leafs; ++j) {
+				if (lll[j].number == idxs2[i]) {
+					if (!start)
+						start = j;
+					stop = j + 1;
+				}
+				if (lll[j].number != idxs2[i] && start && stop)
+					break;
+			}
+			//if (stop - 1 == start)
+			//	printf("Error shape N %u\n", idxs2[i]);
+			for (unsigned k = start; k < stop; ++k) {
+				if (lll[k].x > -1 && lll[k].x < 1 && lll[k].y > 1 && lll[k].y < 1.5) {
+					flag = true;
+					break;
+				}
+			}
+			if (!flag)
+				for (unsigned k = start; k < stop; ++k)
+					printf("IDX 2: %u (%u): x = %f, y = %f\n", idxs2[i], lll[k].number, lll[k].x, lll[k].y);
+			flag = false;
+		}*/
 #endif
-	*/
+	}
+	else {
+		printf("Result count = %u (%u)\n", count_items1, count_items2);
+	}
 
 #ifdef USE_CUDA
 	_aligned_free(idxs2);

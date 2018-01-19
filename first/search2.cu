@@ -13,6 +13,7 @@
 
 #define DEBUG_CUDA_INFO
 #define MAX_RESULTS 100000
+#define PACK_RESULTS
 
 struct boundaries {
 	coord x_min;
@@ -28,6 +29,17 @@ __constant__ unsigned dev_threads_count[1];
 unsigned m_threads_count;
 indexer m_count_branches;
 int m_length_of_tree = 0;
+
+//__constant__ struct branch *m_ttt_cuda_first_branch = NULL;
+
+#ifdef PACK_RESULTS
+/// compare
+int cmp(const void* a, const void* b)
+{
+	return (int)(*(indexer*)a - *(indexer*)b);
+}
+
+#endif
 
 extern "C"
 bool init_cuda_device(int deviceID, struct node* node)
@@ -204,6 +216,24 @@ bool init_cuda_device(int deviceID, struct node* node)
 	*/
 	memcpy(tbr, first_branch, sizeof(struct branch) * m_count_branches);
 
+	// for debug
+	/*printf("\n\n\n======================================================================\n");
+	for (indexer i = 0; i < count1[pos]; ++i) {
+		if ((struct node*)(stack_first_node[pos + 1])[i].is_last_node) {
+			unsigned tt = ((struct node*)(stack_first_node[pos + 1]))[i].count_child_nodes;
+			for (indexer ii = 0; ii < tt; ++ii) {
+				unsigned idx = (struct branch*)((struct node*)(stack_first_node[pos + 1])[i].child_node[ii]) - first_branch;
+				if (!idx)
+					printf("0\n");
+				else
+					printf("%u\n", idx);
+			}
+		}
+		else {
+			printf("Error last node %u\n", i);
+		}
+	}*/
+
 	// copy data of branches to device
 	clock_t t1 = clock();
 	cudaStream_t stream;
@@ -222,7 +252,7 @@ bool init_cuda_device(int deviceID, struct node* node)
 		data_ptr = tbr[i].merge_next_leaf;
 		er1 = cudaMalloc((void**)&(tbr[i].merge_next_leaf), sizeof(bool) * tbr[i].count_leafs);
 		er1 = cudaMemcpyAsync(tbr[i].merge_next_leaf, data_ptr, sizeof(bool) * tbr[i].count_leafs, cudaMemcpyHostToDevice, stream);
-		data_ptr = tbr[i].xsh_min;
+		/*data_ptr = tbr[i].xsh_min;
 		er1 = cudaMalloc((void**)&(tbr[i].xsh_min), sizeof(coord) * tbr[i].count_shapes);
 		er1 = cudaMemcpyAsync(tbr[i].xsh_min, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice, stream);
 		data_ptr = tbr[i].xsh_max;
@@ -233,7 +263,7 @@ bool init_cuda_device(int deviceID, struct node* node)
 		er1 = cudaMemcpyAsync(tbr[i].ysh_min, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice, stream);
 		data_ptr = tbr[i].ysh_max;
 		er1 = cudaMalloc((void**)&(tbr[i].ysh_max), sizeof(coord) * tbr[i].count_shapes);
-		er1 = cudaMemcpyAsync(tbr[i].ysh_max, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice, stream);
+		er1 = cudaMemcpyAsync(tbr[i].ysh_max, data_ptr, sizeof(coord) * tbr[i].count_shapes, cudaMemcpyHostToDevice, stream); */
 		data_ptr = tbr[i].offset;
 		er1 = cudaMalloc((void**)&(tbr[i].offset), sizeof(indexer) * tbr[i].count_shapes);
 		er1 = cudaMemcpyAsync(tbr[i].offset, data_ptr, sizeof(indexer) * tbr[i].count_shapes, cudaMemcpyHostToDevice, stream);
@@ -247,6 +277,7 @@ bool init_cuda_device(int deviceID, struct node* node)
 	struct branch *dev_br = NULL;
 	er1 = cudaMalloc((void**)&dev_br, sizeof(struct branch) * m_count_branches);
 	er1 = cudaMemcpy(dev_br, tbr, sizeof(struct branch) * m_count_branches, cudaMemcpyHostToDevice);
+	//cudaMemcpyToSymbol(m_ttt_cuda_first_branch, &dev_br, sizeof(struct branch*));
 
 	//return false;
 	alignas(16) struct node *to_dev_nd[65];
@@ -260,6 +291,7 @@ bool init_cuda_device(int deviceID, struct node* node)
 	//unsigned j = 0;
 	//void* tmp1 = NULL;
 	unsigned count = tnd->count_child_nodes, prev_count = 1;
+	//printf("\n\n\n======================================================================\n");
 	for (int k1 = pos; k1 >= 0; --k1) {
 		tnd = node;
 		//for (unsigned j = 0; j <= k1; ++j)
@@ -280,6 +312,8 @@ bool init_cuda_device(int deviceID, struct node* node)
 					// copy pointer of branches
 					//struct branch *ptr = &(dev_br[k2 + j * MAX_NODES]);
 					unsigned idx = (struct branch*)((struct node*)(stack_first_node[k1 + 1])[j].child_node[k2]) - first_branch;
+					//if (idx == 4899)
+					//	printf("%u\n", idx);
 					struct branch *ptr = &(dev_br[idx]);
 					er1 = cudaMemcpy((void*)((to_dev_nd[k1])[j].child_node + k2), &ptr, sizeof(struct branch*), cudaMemcpyHostToDevice);
 				}
@@ -346,7 +380,8 @@ extern "C"
 indexer* cuda_search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
 /* searchin items in selected rectangle on cuda device imlementation */
 __global__ void cuda_search_rect2_impl1(void **nd, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
-__global__ void cuda_search_rect2_impl2(void **nd, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
+__global__ void cuda_search_rect2_impl2(void **nd, int *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items);
+__global__ void cuda_search_rect2_impl3(indexer *unpack_idxs, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items);
 #else
 indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items)
 __global__ indexer* search_rect2_impl(void *nd_ptr, indexer iter_count, /*out*/indexer *count_items)
@@ -365,9 +400,13 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	size_t count_mem = 1;
 	alignas(16) indexer* idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * mem_size * count_mem); */
 	cudaError_t er1;
-	indexer *host_idxs = NULL, *dev_idxs = NULL;
+	cudaStream_t stream;
+	cudaStreamCreate(&stream);
+
+	indexer *host_idxs = NULL, *dev_idxs = NULL, *dev_tmp_idxs = NULL;;
 	cudaHostAlloc((void**)&host_idxs, sizeof(indexer) * MAX_RESULTS, cudaHostAllocMapped);
 	cudaHostGetDevicePointer((void**)&dev_idxs, host_idxs, 0);
+	cudaMalloc((void**)&dev_tmp_idxs, sizeof(indexer) * MAX_RESULTS);
 
 	// searching
 	cudaEvent_t start, stop;
@@ -381,17 +420,17 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	boundaries b1;
 	b1.intersection = intersection; b1.x_max = x_max; b1.x_min = x_min; b1.y_max = y_max; b1.y_min = y_min;
 	//cudaMalloc((void**)dev_bonds, sizeof(struct boundaries));
-	cudaMemcpyToSymbol(dev_bonds, &b1, sizeof(struct boundaries));
+	cudaMemcpyToSymbolAsync(dev_bonds, &b1, sizeof(struct boundaries), 0, cudaMemcpyHostToDevice, stream);
 	// for store count of iterations to next step
 	indexer *dev_atomic_iter = NULL;
 	cudaMalloc((void**)&dev_atomic_iter, sizeof(indexer));
-	cudaMemset(dev_atomic_iter, 0, 1);
+	cudaMemsetAsync(dev_atomic_iter, 0, 1, stream);
 	// store pointers for next step
 	void **dev_ptr = NULL, **dev_ptr2 = NULL;
 	cudaMalloc((void**)&dev_ptr, sizeof(void*) * m_count_branches);
 	//printf("======================= 0x%llx; 0x%llx, count_br = %u\n", &m_dev_node, m_dev_node, m_count_branches);
 	void **tptr = (void**)(&m_dev_node);
-	cudaMemcpy(dev_ptr, tptr, sizeof(void*), cudaMemcpyHostToDevice);
+	cudaMemcpyAsync(dev_ptr, tptr, sizeof(void*), cudaMemcpyHostToDevice, stream);
 	cudaMalloc((void**)&dev_ptr2, sizeof(void*) * m_count_branches);
 	//printf("======================= 0x%llx; 0x%llx; dev_ptr = 0x%llx\n", &m_dev_node, m_dev_node, dev_ptr);
 	// count items
@@ -400,10 +439,9 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	// count of iterations
 	indexer *dev_iter_count = NULL;
 	cudaMalloc((void**)&dev_iter_count, sizeof(indexer));
-	cudaMemset(dev_iter_count, 1, 1);
+	cudaMemsetAsync(dev_iter_count, 1, 1, stream);
+	cudaStreamSynchronize(stream);
 
-	cudaStream_t stream;
-	cudaStreamCreate(&stream);
 	indexer atomic_iter = 0;
 
 	cudaEventCreate(&start);
@@ -413,13 +451,14 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	// calculating nodes
 	for (int i = 0; i < m_length_of_tree + 1; ++i) {
 		er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
-		cuda_search_rect2_impl1 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, dev_iter_count, dev_atomic_iter, dev_ptr2, host_idxs, count_items, callback, data);
+		cuda_search_rect2_impl1 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, dev_iter_count, dev_atomic_iter, dev_ptr2, dev_idxs, count_items, callback, data);
 
 		er1 = cudaMemcpyAsync(&atomic_iter, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 		er1 = cudaMemcpyAsync(dev_ptr, dev_ptr2, sizeof(void*) * atomic_iter, cudaMemcpyDeviceToDevice, stream);
 		er1 = cudaMemcpyAsync(dev_iter_count, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToDevice, stream);
 		printf("Iter %i: next = %u (%s)\n", i, atomic_iter, er1 == cudaSuccess ? "true" : "false");
 		cudaStreamSynchronize(stream);
+		//cudaThreadSynchronize();
 	}
 
 	cudaEventRecord(stop, stream);
@@ -429,18 +468,9 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 
 	// calculating branches
 	grid_size = dim3(atomic_iter, 1, 1);
-	/*int device_id;
-	cudaDeviceProp prop;
-	er1 = cudaGetDevice(&device_id);
-	er1 = cudaGetDeviceProperties(&prop, device_id);
-	if (MAX_NODES <= prop.maxThreadsPerBlock)
-		block_size = dim3(MAX_NODES, 1, 1);
-	else
-		block_size = dim3(prop.maxThreadsPerBlock, 1, 1);*/
-
 	cudaEventRecord(start, stream);
 	er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
-	cuda_search_rect2_impl2 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, dev_iter_count, dev_atomic_iter, dev_ptr2, host_idxs, count_items, callback, data);
+	cuda_search_rect2_impl2 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, NULL, dev_atomic_iter, dev_ptr2, dev_idxs, count_items);
 	er1 = cudaMemcpyAsync(&atomic_iter, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 	cudaStreamSynchronize(stream);
 	cudaThreadSynchronize();
@@ -449,21 +479,54 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	cudaEventElapsedTime(&gtime, start, stop);
 	printf("Kernel 2 time = %f ms\n", gtime);
 
+	/*grid_size = dim3(prop.multiProcessorCount, 1, 1);
+	cudaEventRecord(start, stream);
+	er1 = cudaMemcpyAsync(dev_iter_count, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToDevice, stream);
+	er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
+	cuda_search_rect2_impl3 << <grid_size, block_size, 0, stream >> > (dev_tmp_idxs, dev_iter_count, dev_atomic_iter, dev_ptr2, dev_idxs, count_items);
+	cudaStreamSynchronize(stream);
+	cudaThreadSynchronize();
+	cudaEventRecord(stop, stream);
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&gtime, start, stop);
+	printf("Kernel 3 time = %f ms\n", gtime);*/
+
 	cudaMemcpyAsync(count_items, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 
 	indexer *idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * *count_items);
-	cudaMemcpyAsync(idxs, host_idxs, sizeof(indexer) * *count_items, cudaMemcpyHostToHost, stream);
+	er1 = cudaMemcpyAsync(idxs, host_idxs, sizeof(indexer) * *count_items, cudaMemcpyHostToHost, stream);
 	cudaStreamSynchronize(stream);
 
 	// freeing and destroying
 	cudaStreamDestroy(stream);
 
+	cudaFree(dev_iter_count);
+	cudaFree(dev_ptr);
+	cudaFree(dev_ptr2);
+	cudaFree(dev_tmp_idxs);
 	cudaFree(dev_count_items);
 	cudaFree(dev_ptr);
 	cudaFree(dev_atomic_iter);
 	cudaEventDestroy(stop);
 	cudaEventDestroy(start);
 	cudaFreeHost(host_idxs);
+
+#ifdef PACK_RESULTS
+	qsort(idxs, *count_items, sizeof(indexer), cmp);
+	indexer j = 1;
+	indexer offset = 0;
+	for (indexer i = 0; i < *count_items - 1 - offset; ++i) {
+		if (idxs[i] == idxs[i + 1 + offset]) {
+			offset++;
+			idxs[i + 1] = idxs[i + 1 + offset];
+		}
+		if (offset)
+			idxs[i + 1] = idxs[i + 1 + offset];
+		j++;
+	}
+	*count_items = j;
+	idxs = (indexer*)_aligned_realloc(idxs, sizeof(indexer) * j, 16);
+#endif
 	return idxs;
 }
 
@@ -478,19 +541,8 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 	//if (!idxx)
 	//	printf("Calc NODE iter_count = %u (0x%llx)\n", *iter_count, iter_count);
 
-	struct node* nd = (struct node*)nd_ptr[0];
+	struct node** nd = (struct node**)nd_ptr;
 	//indexer idx = 0;
-
-	//struct node *stack_node[64];
-	//int stack_pos = 0;
-	//indexer stack_idx[64];
-
-	//coord tx = 0.0, ty = 0.0, tx1 = 0.0, ty1 = 0.0;
-	//indexer tn = 0, tn1 = 0;
-
-	//indexer i = 0;
-
-	//coord dist = 0.0;
 
 #ifdef CALC_POINT
 	//coord tmp_dist = FLT_MAX;
@@ -499,13 +551,13 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 	int t = (int)ceilf((float)*iter_count / (float)*dev_threads_count);
 	int t1 = t - 1;
 	for (int j = 0; j < t; ++j) {
-		//printf("Thread = %i, j = %u\n", idxx, j);
+		//printf("Thread = %i, j = %u, t1 = %u, idxx = %u, >= iter_count_t = %u (%s => %s)\n", idxx, j, t1, idxx, iter_count_t, idxx >= iter_count_t ? "true" : "false", j == t1 && idxx >= iter_count_t ? "true" : "false");
 		if (j == t1 && idxx >= iter_count_t) {// idxx_t >= *iter_count) {
 			return;
 		}
-		//printf("Thread %i (%i): x1 = %f, y1 = %f, x2 = %f, y2 = %f\n", idxx + j * (*dev_threads_count), j, nd[idxx + j * (*dev_threads_count)].x1, nd[idxx + j * (*dev_threads_count)].y1, nd[idxx + j * (*dev_threads_count)].x2, nd[idxx + j * (*dev_threads_count)].y2);
+		//printf("Thread %i (%i): x1 = %f, x2 = %f, y1 = %f, y2 = %f\n", idxx + j * (*dev_threads_count), j, nd[idxx + j * (*dev_threads_count)]->x1, nd[idxx + j * (*dev_threads_count)]->x2, nd[idxx + j * (*dev_threads_count)]->y1, nd[idxx + j * (*dev_threads_count)]->y2);
 		// node in bounrary or bounrary in node
-		if (nd[idxx + j * (*dev_threads_count)].x1 <= dev_bonds->x_max && nd[idxx + j * (*dev_threads_count)].x2 >= dev_bonds->x_min && nd[idxx + j * (*dev_threads_count)].y1 <= dev_bonds->y_max && nd[idxx + j * (*dev_threads_count)].y2 >= dev_bonds->y_min) {
+		if (nd[idxx + j * (*dev_threads_count)]->x1 <= dev_bonds->x_max && nd[idxx + j * (*dev_threads_count)]->x2 >= dev_bonds->x_min && nd[idxx + j * (*dev_threads_count)]->y1 <= dev_bonds->y_max && nd[idxx + j * (*dev_threads_count)]->y2 >= dev_bonds->y_min) {
 			//printf("Thread %i (%i) ================================ ====\n", idxx + j * (*dev_threads_count), j);
 			// check node fully in the boundary
 			//if (nd[idxx].x1 >= dev_bonds->x_min && nd[idxx].y1 >= dev_bonds->y_min && nd[idxx].x2 <= dev_bonds->x_max && nd[idxx].y2 <= dev_bonds->y_max) {
@@ -513,13 +565,14 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 			//}
 			//else {
 				// node isn't fully in the boundary, than add to calculation to next iteration
-				indexer t1 = atomicAdd(atomic_iter, nd[idxx + j * (*dev_threads_count)].count_child_nodes);
+				indexer t1 = atomicAdd(atomic_iter, nd[idxx + j * (*dev_threads_count)]->count_child_nodes);
 				//printf("Increase %i: %u to %u (%u)\n", idxx, t1, *atomic_iter, nd[idxx].count_child_nodes);
 				/*if (t1 + nd->count_child_nodes >= 10000)
 					return; */
-				for (unsigned k = t1, t2 = 0; k < t1 + nd[idxx + j * (*dev_threads_count)].count_child_nodes; ++k, ++t2) {
+				for (unsigned k = t1, t2 = 0; k < t1 + nd[idxx + j * (*dev_threads_count)]->count_child_nodes; ++k, ++t2) {
 					//void **ptr = &next_nd;
-					next_nd[k] = nd[idxx + j * (*dev_threads_count)].child_node[t2];
+					next_nd[k] = nd[idxx + j * (*dev_threads_count)]->child_node[t2];
+					//printf("Next index = %u\n", (struct branch*)(nd[idxx + j * (*dev_threads_count)]->child_node[t2]) - m_ttt_cuda_first_branch);
 				}
 			//}
 		}
@@ -527,276 +580,10 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 			// node and boundary isn't intersection
 		}
 	}
-
-//	return 1;
-/*	while (i < nd->count_child_nodes) {
-		// node in bounrary or bounrary in node
-		if (nd->x1 <= x_max && nd->x2 >= x_min && nd->y1 <= y_max && nd->y2 >= y_min) {
-			// check node fully in the boundary
-#if defined(CALC_CIRCLE) || defined(CALC_POINT)
-			if (!callback2 && nd->x1 >= x_min && nd->y1 >= y_min && nd->x2 <= x_max && nd->y2 <= y_max) {
-#else
-			if (nd->x1 >= x_min && nd->y1 >= y_min && nd->x2 <= x_max && nd->y2 <= y_max) {
-#endif // CALC_CIRCLE
-				// node is fully in the boundary
-				add_nodes(nd, &mem_size, &count_mem, &idx, &idxs);
-#ifdef MINIMAL_DEBUG2
-				printf("Increment node on %u\n", idx - cc3);
-				cc3 = idx;
-#endif // MINIMAL_DEBUG2
-			}
-			else {
-				// node not fully in the boundaty
-				if (nd->is_last_node) {
-					for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
-						struct branch *br = (struct branch*)(nd->child_node)[j];
-						// checking like node
-						if (br->x_min <= x_max && br->x_max >= x_min && br->y_min <= y_max && br->y_max >= y_min) {
-							// check branch fully in the boundary
-#if defined(CALC_CIRCLE) || defined(CALC_POINT)
-							if (!callback2 && br->x_min >= x_min && br->y_min >= y_min && br->x_max <= x_max && br->y_max <= y_max) {
-#else
-							if (br->x_min >= x_min && br->y_min >= y_min && br->x_max <= x_max && br->y_max <= y_max) {
-#endif // CALC_CIRCLE
-								// branch is fully in the boundary
-								add_branch(br, &mem_size, &count_mem, &idx, &idxs);
-#ifdef MINIMAL_DEBUG2
-								printf("Increment branch on %u\n", idx - cc3);
-								cc3 = idx;
-#endif // MINIMAL_DEBUG2
-							}
-							else {
-								for (indexer i1 = 0; i1 < br->count_shapes; ++i1) {
-									// checking like node
-									if (br->xsh_min[i1] <= x_max && br->xsh_max[i1] >= x_min && br->ysh_min[i1] <= y_max && br->ysh_max[i1] >= y_min) {
-										// check shape fully in boundary or intersection with boundary
-										bool fl1 = false;
-										indexer end = i1 + 1 >= br->count_shapes ? br->count_leafs : br->offset[i1 + 1];
-										for (indexer k = br->offset[i1]; k < end; ++k) {
-											if (br->leaf_x[k] >= x_min && br->leaf_x[k] <= x_max && br->leaf_y[k] >= y_min && br->leaf_y[k] <= y_max) {
-												fl1 = true;
-												break;
-											}
-										}
-										if (!fl1 && intersection) {
-											// last check: intersection
-
-											// side 1/2
-											for (indexer k = br->offset[i1]; k < end; ++k) {
-												if (k != end - 1) {
-													if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[k + 1], br->leaf_y[k + 1], x_min, y_min, x_max, y_min)) {
-														fl1 = true;
-														break;
-													}
-												}
-												else {
-													if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[br->offset[i1]], br->leaf_y[br->offset[i1]], x_min, y_min, x_max, y_min)) {
-														fl1 = true;
-														break;
-													}
-												}
-											}
-
-											// side 2/3
-											if (!fl1) {
-												for (indexer k = br->offset[i1]; k < end; ++k) {
-													if (k != end - 1) {
-														if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[k + 1], br->leaf_y[k + 1], x_max, y_min, x_max, y_max)) {
-															fl1 = true;
-															break;
-														}
-													}
-													else {
-														if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[br->offset[i1]], br->leaf_y[br->offset[i1]], x_max, y_min, x_max, y_max)) {
-															fl1 = true;
-															break;
-														}
-													}
-												}
-											}
-
-											// side 3/4
-											if (!fl1) {
-												for (indexer k = br->offset[i1]; k < end; ++k) {
-													if (k != end - 1) {
-														if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[k + 1], br->leaf_y[k + 1], x_max, y_max, x_min, y_max)) {
-															fl1 = true;
-															break;
-														}
-													}
-													else {
-														if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[br->offset[i1]], br->leaf_y[br->offset[i1]], x_max, y_max, x_min, y_max)) {
-															fl1 = true;
-															break;
-														}
-													}
-												}
-											}
-
-											// side 4/1
-											if (!fl1) {
-												for (indexer k = br->offset[i1]; k < end; ++k) {
-													if (k != end - 1) {
-														if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[k + 1], br->leaf_y[k + 1], x_min, y_max, x_min, y_min)) {
-															fl1 = true;
-															break;
-														}
-													}
-													else {
-														if (check_intersection(br->leaf_x[k], br->leaf_y[k], br->leaf_x[br->offset[i1]], br->leaf_y[br->offset[i1]], x_min, y_max, x_min, y_min)) {
-															fl1 = true;
-															break;
-														}
-													}
-												}
-											}
-										}
-
-#ifdef MINIMAL_DEBUG2
-										if (fl1)
-											cc4++;
-#endif
-
-#ifdef CALC_CIRCLE
-										// check callback function to store in return collection
-										if (fl1 && callback2 && data) {
-											struct calc_data cc;
-											cc.br = br;
-											cc.idx = i1;
-											struct point *center = (struct point*)data;
-											cc.center = struct point(*center);
-											cc.radius = (x_max - x_min) / 2.0;
-
-											fl1 = callback2(&cc);
-#ifdef MINIMAL_DEBUG2
-											cc1++;
-											if (fl1)
-												cc2++;
-#endif // MINIMAL_DEBUG2
-										}
-#elif defined(CALC_POINT)
-										// check callback function to store in return collection
-										if (fl1 && callback2 && data) {
-											struct calc_data cc;
-											cc.br = br;
-											cc.idx = i1;
-											struct point *center = (struct point*)data;
-											cc.center = point(*center);
-											//cc.radius = (x_max - x_min) / 2.0;
-											cc.dist = FLT_MAX;
-											cc.curr_idx = -1;
-
-											fl1 = callback2(&cc);
-											if (cc.dist < tmp_dist) {
-												tmp_dist = cc.dist;
-												tmp_idx = cc.curr_idx;
-											}
-											idx = 1;
-										}
-
-#endif //CALC_CIRCLE
-
-										if (fl1) {
-#ifdef MINIMAL_DEBUG2
-											cc3++;
-#endif // MINIMAL_DEBUG2
-											// check memory and store index
-											if (idx > mem_size * count_mem) {
-												count_mem++;
-												idxs = (indexer*)_aligned_realloc(idxs, sizeof(indexer) * mem_size * count_mem, 16);
-											}
-											// store index of current sergment from shape
-											idxs[idx] = br->leaf_number[br->offset[i1]];
-											idx++;
-
-										}
-									}
-								}
-							}
-							}
-						}
-					// return from stack
-					while (stack_pos > 0) {
-						stack_pos--;
-						nd = stack_node[stack_pos];
-						i = stack_idx[stack_pos] + 1;
-
-						if (i < nd->count_child_nodes) {
-							stack_idx[stack_pos] = i;
-							stack_node[stack_pos] = nd;
-							stack_pos++;
-							nd = (struct node*)nd->child_node[i];
-							i = 0;
-							break;
-						}
-					}
-					}
-				else {
-					stack_idx[stack_pos] = i;
-					stack_node[stack_pos] = nd;
-					stack_pos++;
-					i = 0;
-					nd = (struct node*)nd->child_node[i];
-				}
-				}
-			}
-		else if (stack_pos > 0) {
-			// return from stack
-			while (stack_pos > 0) {
-				stack_pos--;
-				nd = stack_node[stack_pos];
-				i = stack_idx[stack_pos] + 1;
-
-				if (i < nd->count_child_nodes) {
-					stack_idx[stack_pos] = i;
-					stack_node[stack_pos] = nd;
-					stack_pos++;
-					nd = (struct node*)nd->child_node[i];
-					i = 0;
-					break;
-				}
-			}
-		}
-		else {
-			char ch1[128];
-#ifndef _WIN
-			snprintf(ch1, 128, "node: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f, rect: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f", nd->x1, nd->y1, nd->x2, nd->x2, x_min, y_min, x_max, y_max);
-#else
-			sprintf_s(ch1, 128, "node: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f, rect: x_min=%.2f, y_min=%.2f, x_max=%.2f, y_max=%.2f", nd->x1, nd->y1, nd->x2, nd->x2, x_min, y_min, x_max, y_max);
-#endif
-			lprintf(ch1);
-			return NULL; //(indexer)-1;
-		}
-		//continue;
-			};
-
-	//free(stack_node);
-	//free(stack_idx);
-#ifdef MINIMAL_DEBUG
-	char ch1[128];
-	//sprintf_s(ch1, 128, "x=%.2f, y=%.2f, point: x=%.2f, y=%.2f, x=%.2f, y=%.2f dist=%.2f, n1=%u, n2=%u", x, y, tx, ty, tx1, ty1, tres.dist, tn, tn1);
-	sprintf_s(ch1, 128, "c1 = %u, c2 = %u, utilization = %0.2f", temp_counter1, temp_counter2, temp_counter2 * 100.0 / temp_counter1);
-	lprintf(ch1);
-#endif
-	*count_items = idx;
-	idxs = (indexer*)_aligned_realloc(idxs, sizeof(indexer) * idx, 16);
-#ifdef MINIMAL_DEBUG2
-	printf("DEBUG: count1 = %u, count2 = %u, count3 = %u, count4 = %u\n", cc1, cc2, cc3, cc4);
-#endif
-
-#ifdef CALC_POINT
-	idxs[0] = tmp_idx;
-	if (data) {
-		struct point *center = (struct point*)data;
-		center->x = tmp_dist;
-	}
-#endif
-	return idxs; //(indexer)-1;
-	*/
 }
 
 /* searchin items in selected rectangle on cuda device imlementation (step 1) */
-__global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *iter_count, indexer *atomic_iter, /*out*/ void** next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items, ret_callback2_circle callback, void *data)
+__global__ void cuda_search_rect2_impl2(void **br_ptr, int *iter_count, indexer *atomic_iter, /*out*/ void** next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items)
 {
 	int idxx = threadIdx.x;
 	int idx_gr_br = blockIdx.x;
@@ -806,8 +593,11 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *iter_count, inde
 
 	// for store temporary results
 	__shared__ indexer temp_res[33]; // must be as blockDim.x size + 1 (for rpevious result)
+	__shared__ indexer temp_res2[32];
 	__shared__ char temp_res_flag[32];
+	//__shared__ int atom_index[1];
 	temp_res[idxx] = (indexer)-1;
+	temp_res2[idxx] = (indexer)-1;
 	if (!idxx)
 		temp_res[32] = (indexer)-1;
 	temp_res_flag[idxx] = -1;
@@ -816,22 +606,26 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *iter_count, inde
 	//if (!idxx)
 	//	printf("Calc BR iter_count = %u (0x%llx), grid.x = %i\n", *iter_count, iter_count, idx_gr_br);
 
-	struct branch* br = (struct branch*)br_ptr[0];
+	//struct branch* br = (struct branch*)br_ptr[0];
+	struct branch** br = (struct branch**)br_ptr;
+	//if (!idxx)
+	//	printf("Thread branch %i: x1 = %f, x2 = %f, y1 = %f, y2 = %f (%u)\n", idx_gr_br, br[idx_gr_br]->x_min, br[idx_gr_br]->x_max, br[idx_gr_br]->y_min, br[idx_gr_br]->y_max, br[idx_gr_br] - m_ttt_cuda_first_branch);
 
-	if (br[idx_gr_br].x_min <= dev_bonds->x_max && br[idx_gr_br].x_max >= dev_bonds->x_min && br[idx_gr_br].y_min <= dev_bonds->y_max && br[idx_gr_br].y_max >= dev_bonds->y_min) {
-		//printf("%i, %i\n", idx_gr_br, idxx);
+	if (br[idx_gr_br]->x_min <= dev_bonds->x_max && br[idx_gr_br]->x_max >= dev_bonds->x_min && br[idx_gr_br]->y_min <= dev_bonds->y_max && br[idx_gr_br]->y_max >= dev_bonds->y_min) {
+		//if (!idxx)
+		//	printf("------------------ %i, %u\n", idx_gr_br, br[idx_gr_br]->count_shapes);
 		//int idxx_t = idxx % blockDim.x;
-		int t = (int)ceilf((float)br[idx_gr_br].count_leafs / (float)blockDim.x);
+		int t = (int)ceilf((float)br[idx_gr_br]->count_leafs / (float)blockDim.x);
 		int t1 = t - 1;
 		for (int j = 0; j < t; ++j) {
 			int curr_offset = j * blockDim.x;
-			if (j == t1 && idxx + curr_offset >= br[idx_gr_br].count_leafs) {
-				return;
+			if (j == t1 && idxx + curr_offset >= br[idx_gr_br]->count_leafs) {
+				break;
 			}
 
 			// check points to enter to boundary
-			if (br[idx_gr_br].leaf_x[idxx + curr_offset] >= dev_bonds->x_min && br[idx_gr_br].leaf_x[idxx + curr_offset] <= dev_bonds->x_max && br[idx_gr_br].leaf_y[idxx + curr_offset] >= dev_bonds->y_min && br[idx_gr_br].leaf_y[idxx + curr_offset] <= dev_bonds->y_max) {
-				temp_res[idxx] = br[idx_gr_br].leaf_number[idxx + curr_offset];
+			if (br[idx_gr_br]->leaf_x[idxx + curr_offset] >= dev_bonds->x_min && br[idx_gr_br]->leaf_x[idxx + curr_offset] <= dev_bonds->x_max && br[idx_gr_br]->leaf_y[idxx + curr_offset] >= dev_bonds->y_min && br[idx_gr_br]->leaf_y[idxx + curr_offset] <= dev_bonds->y_max) {
+				temp_res[idxx] = br[idx_gr_br]->leaf_number[idxx + curr_offset];
 				/*int t2 = atomicAdd(atomic_iter, 1);
 				if (t2 >= MAX_RESULTS - 1) {
 					// can not store result
@@ -842,18 +636,45 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *iter_count, inde
 					//idxs[t2] = 
 				}*/
 			}
+			//if (!idxx)
+			//	atom_index[0] = 0;
 			__syncthreads();
+
+			// fill empty places
+			/*if (temp_res2[idxx] != (indexer)-1) {
+				int t2 = atomicAdd(atom_index, 1);
+				temp_res[t2] = temp_res2[idxx];
+				printf("Temp (%i): %i => %i, res = %u (%u)\n", idxx, t2, atom_index[0], temp_res[t2], temp_res2[idxx]);
+				if (t2 >= 32)
+					printf("Vai vai vai %i => %i\n", t2, atom_index[0]);
+			}
+			//__threadfence();
+			__syncthreads();
+			if (!idxx)
+			printf("1 === %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",
+				temp_res[0], temp_res[1], temp_res[2], temp_res[3], temp_res[4], temp_res[5], temp_res[6], temp_res[7], temp_res[8], temp_res[9],
+				temp_res[10], temp_res[11], temp_res[12], temp_res[13], temp_res[14], temp_res[15], temp_res[16], temp_res[17], temp_res[18], temp_res[19],
+				temp_res[20], temp_res[21], temp_res[22], temp_res[23], temp_res[24], temp_res[25], temp_res[26], temp_res[27], temp_res[28], temp_res[29],
+				temp_res[30], temp_res[31]);*/
 
 			// packing temporary results
 			if (temp_res[idxx] == temp_res[idxx + 1]) {
 				__threadfence();
 				temp_res[idxx + 1] = -1;
-				//printf("Index of equals items = %u + %u => %u\n", idxx, idxx + 1, temp_res[idxx + 1]);
+				//__threadfence();
+				//if (temp_res[idxx] != -1)
+				//	printf("Index of equals items = %u + %u => %u\n", idxx, idxx + 1, temp_res[idxx + 1]);
 			}
 			else {
 				//__threadfence();
 			}
 			__syncthreads();
+			/*if (!idxx)
+			printf("2 === %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",
+				temp_res[0], temp_res[1], temp_res[2], temp_res[3], temp_res[4], temp_res[5], temp_res[6], temp_res[7], temp_res[8], temp_res[9],
+				temp_res[10], temp_res[11], temp_res[12], temp_res[13], temp_res[14], temp_res[15], temp_res[16], temp_res[17], temp_res[18], temp_res[19],
+				temp_res[20], temp_res[21], temp_res[22], temp_res[23], temp_res[24], temp_res[25], temp_res[26], temp_res[27], temp_res[28], temp_res[29],
+				temp_res[30], temp_res[31]);*/
 			// ckeck for previous result
 			if (!idxx) {
 				//if (temp_res[0] != (unsigned)-1) printf("%i:%i Prev step = %u (%u)\n", idx_gr_br, j, temp_res[32], temp_res[0]);
@@ -862,9 +683,9 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *iter_count, inde
 					temp_res[0] = -1;
 				}
 			}
-			__syncthreads();
+			//__syncthreads();
 
-			// store temporary results to global array
+			// store temporary results to global array2
 			if (temp_res[idxx] != -1) {
 				int t2 = atomicAdd(atomic_iter, 1);
 				if (t2 >= MAX_RESULTS - 1) {
@@ -872,10 +693,11 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *iter_count, inde
 					atomicSub(atomic_iter, 1);
 				}
 				else {
-					// can store result
+					// can store result (idxs2 - temporary)
 					idxs[t2] = temp_res[idxx];
 					//printf("Number = %u, value = %u (%u)\n", t2, temp_res[idxx], idxs[t2]);
 					temp_res_flag[idxx] = idxx;
+					//printf("Increase %i: %u to %u\n", idxx, t2, *iter_count);
 				}
 			}
 
@@ -900,8 +722,93 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *iter_count, inde
 			
 			// reset temporary resulats
 			temp_res[idxx] = -1;
+			temp_res2[idxx] = -1;
 			temp_res_flag[idxx] = -1;
 			__syncthreads();
+		}
+	}
+}
+
+__global__ void cuda_search_rect2_impl3(indexer *unpack_idxs, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items)
+{
+	int idxx = threadIdx.x + blockIdx.x * blockDim.x;
+
+	// for store temporary results
+	__shared__ indexer temp_res[33]; // must be as blockDim.x size + 1 (for rpevious result)
+	__shared__ char temp_res_flag[32];
+	temp_res[idxx] = (indexer)-1;
+	if (!idxx)
+		temp_res[32] = (indexer)-1;
+	temp_res_flag[idxx] = -1;
+
+	int t = (int)ceilf((float)*iter_count / (float)blockDim.x);
+	int t1 = t - 1;
+	temp_res[idxx] = -1;
+	temp_res_flag[idxx] = -1;
+	if (!idxx) {
+		temp_res[32] = -1;
+		printf("---------------------- Count temp results = %u (t = %i) ------------------\n", *iter_count, t);
+	}
+
+	for (int j = 0; j < t; ++j) {
+		int curr_offset = j * blockDim.x;
+		if (j == t1 && idxx + curr_offset >= *iter_count) {
+			break;
+		}
+		temp_res[idxx] = unpack_idxs[idxx + curr_offset];
+
+		if (temp_res[idxx] == temp_res[idxx + 1]) {
+			__threadfence();
+			temp_res[idxx + 1] = -1;
+		}
+		__syncthreads();
+
+		if (!idxx) {
+			if (temp_res[32] == temp_res[0]) {
+				temp_res[0] = -1;
+			}
+		}
+
+		//__threadfence();
+		if (temp_res[idxx] == 2501949) {
+			printf("1 =========================================================== 250 ======================================== %i, j = %i\n", idxx, j);
+			printf("1 === %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",
+				temp_res[0], temp_res[1], temp_res[2], temp_res[3], temp_res[4], temp_res[5], temp_res[6], temp_res[7], temp_res[8], temp_res[9],
+				temp_res[10], temp_res[11], temp_res[12], temp_res[13], temp_res[14], temp_res[15], temp_res[16], temp_res[17], temp_res[18], temp_res[19],
+				temp_res[20], temp_res[21], temp_res[22], temp_res[23], temp_res[24], temp_res[25], temp_res[26], temp_res[27], temp_res[28], temp_res[29],
+				temp_res[30], temp_res[31]);
+		}
+
+		// store results to global array
+		if (temp_res[idxx] != -1) {
+			int t2 = atomicAdd(atomic_iter, 1);
+			if (t2 >= MAX_RESULTS - 1) {
+				// can not store result
+				atomicSub(atomic_iter, 1);
+			}
+			else {
+				// can store result (idxs2 - temporary)
+				idxs[t2] = temp_res[idxx];
+				//printf("Number = %u, value = %u (%u)\n", t2, temp_res[idxx], idxs[t2]);
+				temp_res_flag[idxx] = idxx;
+				//printf("Increase %i: %u to %u\n", idxx, t2, *iter_count);
+			}
+		}
+		// store previous result
+		for (int t2 = blockDim.x / 2; t2 > 0; t2 >>= 1)
+		{
+			if (idxx < t2) {
+				if (temp_res_flag[idxx] < temp_res_flag[idxx + t2])
+					temp_res_flag[idxx] = temp_res_flag[idxx + t2];
+			}
+			__syncthreads();
+		}
+		if (!idxx) {
+			if (temp_res_flag[idxx] != -1) {
+				//printf("INDEX === %u\n", temp_res_flag[idxx]);
+				temp_res[32] = temp_res[temp_res_flag[idxx]]; // idxs[idxx];
+			}
+			//if (temp_res[32] != (unsigned)-1) printf("%i:%i Next step = %u\n", idx_gr_br, j, temp_res[32]);
 		}
 	}
 }

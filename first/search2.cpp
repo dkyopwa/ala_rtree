@@ -12,6 +12,8 @@
 
 //#define MINIMAL_DEBUG2
 
+//extern struct branch *m_ttt_first_branch;
+
 struct point {
 	coord x;
 	coord y;
@@ -216,12 +218,14 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 #endif // MINIMAL_DEBUG2
 			}
 			else {
+				//printf("+-+-+-+-+-+-+-+-+-+-+- pos = %u, x1 = %f, x2 = %f, y1 = %f, y2 = %f\n", stack_pos, nd->x1, nd->x2, nd->y1, nd->y2);
 				// node not fully in the boundaty
 				if (nd->is_last_node) {
 					for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
 						struct branch *br = (struct branch*)(nd->child_node)[j];
 						// checking like node
 						if (br->x_min <= x_max && br->x_max >= x_min && br->y_min <= y_max && br->y_max >= y_min) {
+							//printf("+++++++++++++++++++ x1 = %f, x2 = %f, y1 = %f, y2 = %f (%u)\n", br->x_min, br->x_max, br->y_min, br->y_max, br - m_ttt_first_branch);
 							// check branch fully in the boundary
 #if defined(CALC_CIRCLE) || defined(CALC_POINT)
 							if (!callback2 && br->x_min >= x_min && br->y_min >= y_min && br->x_max <= x_max && br->y_max <= y_max) {

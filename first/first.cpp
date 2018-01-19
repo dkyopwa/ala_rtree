@@ -48,6 +48,8 @@ struct node* m_nodes = NULL;
 //struct center_node_st* m_branch_center = NULL;
 unsigned m_max_added_leafs_in_iter = 100000;
 
+// for debuging
+//struct branch *m_ttt_first_branch = NULL;
 
 /// main function
 struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *offsets_leafs, unsigned count_shapes)
@@ -1383,6 +1385,7 @@ struct node* separate_branches(struct node* nd)
 	
 	// move branches to other (sorted nodes) positions
 	alignas(16) struct branch* tbr1 = (struct branch*)aligned_alloc(16, sizeof(struct branch) * nd->count_child_nodes);
+	//m_ttt_first_branch = tbr1;
 	for (unsigned i = 0; i < nd->count_child_nodes; ++i) {
 		memcpy(&(tbr1[i]), nd->center_child_node[i].pos, sizeof(struct branch));
 	}
