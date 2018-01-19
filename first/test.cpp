@@ -59,7 +59,7 @@ int main()
 	unsigned count_of_leafs = 0; // old: must to devide 3 without
 	alignas(16) unsigned *offsets_leafs = NULL;
 	unsigned count_shapes = 0;
-	struct leaf* lll = automatic_generate(&count_of_leafs, &offsets_leafs, &count_shapes, 5000000);
+	struct leaf* lll = automatic_generate(&count_of_leafs, &offsets_leafs, &count_shapes);
 	//struct leaf* lll = generate(&count_of_leafs, &offsets_leafs, &count_shapes);
 
 	char ch[1024];
@@ -702,17 +702,17 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
 	indexer count_items1 = 0, count_items2 = 0;
 	coord dist;
-	indexer *idxs1 = search_rect2(nd, -1, 1, 1, 1.5, false, &count_items1); //-180, -87, 180, -86.6
+	indexer *idxs1 = search_rect2(nd, -180, 1, 1, 1.5, false, &count_items1); //-180, -87, 180, -86.6
 #ifdef USE_CUDA
-	indexer *idxs2 = cuda_search_rect2(nd, -1, 1, 1, 1.5, false, &count_items2);
+	indexer *idxs2 = cuda_search_rect2(nd, -180, 1, 1, 1.5, false, &count_items2);
 #endif
 	if (count_items1 != count_items2 && count_items2 != 99999) {
 		printf("Error in count items: %u vs %u\n", count_items1, count_items2);
 
-		printf("RESULT 1\n");
+/*		printf("RESULT 1\n");
 		for (indexer i = 0; i < count_items1; ++i)
 			printf("%u\n", idxs1[i]);
-/*		unsigned start = 0, stop = 0;
+		unsigned start = 0, stop = 0;
 		bool flag = false;
 		for (indexer i = 0; i < count_items1; ++i) {
 			start = 0; stop = 0;
@@ -740,10 +740,10 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 		}
 		*/
 #ifdef USE_CUDA
-		printf("\n\n\nRESULT 2\n");
+	/*	printf("\n\n\nRESULT 2\n");
 		for (indexer i = 0; i < count_items2; ++i)
 			printf("%u\n", idxs2[i]);
-	/*	for (indexer i = 0; i < count_items2; ++i) {
+		for (indexer i = 0; i < count_items2; ++i) {
 			start = 0; stop = 0;
 			for (unsigned j = 0; j < count_of_leafs; ++j) {
 				if (lll[j].number == idxs2[i]) {

@@ -456,8 +456,8 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 		er1 = cudaMemcpyAsync(&atomic_iter, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 		er1 = cudaMemcpyAsync(dev_ptr, dev_ptr2, sizeof(void*) * atomic_iter, cudaMemcpyDeviceToDevice, stream);
 		er1 = cudaMemcpyAsync(dev_iter_count, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToDevice, stream);
-		printf("Iter %i: next = %u (%s)\n", i, atomic_iter, er1 == cudaSuccess ? "true" : "false");
 		cudaStreamSynchronize(stream);
+		printf("===== Iter %i: next = %u (%s)\n", i, atomic_iter, er1 == cudaSuccess ? "true" : "false");
 		//cudaThreadSynchronize();
 	}
 
@@ -512,20 +512,22 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	cudaFreeHost(host_idxs);
 
 #ifdef PACK_RESULTS
-	qsort(idxs, *count_items, sizeof(indexer), cmp);
-	indexer j = 1;
-	indexer offset = 0;
-	for (indexer i = 0; i < *count_items - 1 - offset; ++i) {
-		if (idxs[i] == idxs[i + 1 + offset]) {
-			offset++;
-			idxs[i + 1] = idxs[i + 1 + offset];
+	if (*count_items) {
+		qsort(idxs, *count_items, sizeof(indexer), cmp);
+		indexer j = 1;
+		indexer offset = 0;
+		for (indexer i = 0; i < *count_items - 1 - offset; ++i) {
+			if (idxs[i] == idxs[i + 1 + offset]) {
+				offset++;
+				idxs[i + 1] = idxs[i + 1 + offset];
+			}
+			if (offset)
+				idxs[i + 1] = idxs[i + 1 + offset];
+			j++;
 		}
-		if (offset)
-			idxs[i + 1] = idxs[i + 1 + offset];
-		j++;
+		*count_items = j;
+		idxs = (indexer*)_aligned_realloc(idxs, sizeof(indexer) * j, 16);
 	}
-	*count_items = j;
-	idxs = (indexer*)_aligned_realloc(idxs, sizeof(indexer) * j, 16);
 #endif
 	return idxs;
 }
@@ -537,6 +539,8 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 	//printf("Thread = %u\n", idxx);
 	//int idxx_t = idxx % (*dev_threads_count);
 	indexer iter_count_t = *iter_count % (*dev_threads_count);
+	if (!iter_count_t)
+		iter_count_t = *iter_count;
 
 	//if (!idxx)
 	//	printf("Calc NODE iter_count = %u (0x%llx)\n", *iter_count, iter_count);
@@ -566,7 +570,7 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 			//else {
 				// node isn't fully in the boundary, than add to calculation to next iteration
 				indexer t1 = atomicAdd(atomic_iter, nd[idxx + j * (*dev_threads_count)]->count_child_nodes);
-				//printf("Increase %i: %u to %u (%u)\n", idxx, t1, *atomic_iter, nd[idxx].count_child_nodes);
+				//printf("Increase %i: %u to %u (%u)\n", idxx, t1, *atomic_iter, nd[idxx]->count_child_nodes);
 				/*if (t1 + nd->count_child_nodes >= 10000)
 					return; */
 				for (unsigned k = t1, t2 = 0; k < t1 + nd[idxx + j * (*dev_threads_count)]->count_child_nodes; ++k, ++t2) {
@@ -609,7 +613,7 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, int *iter_count, indexer 
 	//struct branch* br = (struct branch*)br_ptr[0];
 	struct branch** br = (struct branch**)br_ptr;
 	//if (!idxx)
-	//	printf("Thread branch %i: x1 = %f, x2 = %f, y1 = %f, y2 = %f (%u)\n", idx_gr_br, br[idx_gr_br]->x_min, br[idx_gr_br]->x_max, br[idx_gr_br]->y_min, br[idx_gr_br]->y_max, br[idx_gr_br] - m_ttt_cuda_first_branch);
+	//printf("Thread branch %i: x1 = %f, x2 = %f, y1 = %f, y2 = %f (u)\n", idx_gr_br, br[idx_gr_br]->x_min, br[idx_gr_br]->x_max, br[idx_gr_br]->y_min, br[idx_gr_br]->y_max); // , br[idx_gr_br] - m_ttt_cuda_first_branch);
 
 	if (br[idx_gr_br]->x_min <= dev_bonds->x_max && br[idx_gr_br]->x_max >= dev_bonds->x_min && br[idx_gr_br]->y_min <= dev_bonds->y_max && br[idx_gr_br]->y_max >= dev_bonds->y_min) {
 		//if (!idxx)
