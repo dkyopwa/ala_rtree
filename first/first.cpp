@@ -1008,7 +1008,7 @@ bool create_first_thread(struct node* nd, struct leaf* leafs, unsigned *offsets_
 	for (unsigned i = 0; i < count_cpus; ++i) {
 		ftst[i].leafs_ = leafs;
 		ftst[i].node_ = &(nd[i]);
-		ftst[i].offsets_leafs_ = &(offsets_leafs[leafs[idx[i]].number]);
+		ftst[i].offsets_leafs_ = &(offsets_leafs[idx[i]]);
 		ftst[i].count_leaf = idx[i + 1] - idx[i];
 		ftst[i].start_pos_leafs = idx[i];
 

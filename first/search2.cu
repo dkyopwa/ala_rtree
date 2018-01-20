@@ -268,8 +268,8 @@ bool init_cuda_device(int deviceID, struct node* node)
 		er1 = cudaMalloc((void**)&(tbr[i].offset), sizeof(indexer) * tbr[i].count_shapes);
 		er1 = cudaMemcpyAsync(tbr[i].offset, data_ptr, sizeof(indexer) * tbr[i].count_shapes, cudaMemcpyHostToDevice, stream);
 	}
-	cudaStreamSynchronize(stream);
-	cudaStreamDestroy(stream);
+	er1 = cudaStreamSynchronize(stream);
+	er1 = cudaStreamDestroy(stream);
 	clock_t t2 = clock();
 	printf("Time copying data to device = %u ms\n", t2 - t1);
 
@@ -369,7 +369,7 @@ bool init_cuda_device(int deviceID, struct node* node)
 extern "C"
 bool destroy_cuda_device()
 {
-	cudaFree(dev_threads_count);
+	//cudaFree(dev_threads_count);
 	cudaError_t er1 = cudaDeviceReset();
 	return er1 == cudaSuccess ? true : false;
 }
@@ -500,13 +500,12 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	// freeing and destroying
 	cudaStreamDestroy(stream);
 
-	cudaFree(dev_iter_count);
-	cudaFree(dev_ptr);
-	cudaFree(dev_ptr2);
-	cudaFree(dev_tmp_idxs);
-	cudaFree(dev_count_items);
-	cudaFree(dev_ptr);
-	cudaFree(dev_atomic_iter);
+	er1 = cudaFree(dev_iter_count);
+	er1 = cudaFree(dev_ptr);
+	er1 = cudaFree(dev_ptr2);
+	er1 = cudaFree(dev_tmp_idxs);
+	er1 = cudaFree(dev_count_items);
+	er1 = cudaFree(dev_atomic_iter);
 	cudaEventDestroy(stop);
 	cudaEventDestroy(start);
 	cudaFreeHost(host_idxs);
@@ -597,11 +596,11 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, int *iter_count, indexer 
 
 	// for store temporary results
 	__shared__ indexer temp_res[33]; // must be as blockDim.x size + 1 (for rpevious result)
-	__shared__ indexer temp_res2[32];
+	//__shared__ indexer temp_res2[32];
 	__shared__ char temp_res_flag[32];
 	//__shared__ int atom_index[1];
 	temp_res[idxx] = (indexer)-1;
-	temp_res2[idxx] = (indexer)-1;
+	//temp_res2[idxx] = (indexer)-1;
 	if (!idxx)
 		temp_res[32] = (indexer)-1;
 	temp_res_flag[idxx] = -1;
@@ -726,7 +725,7 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, int *iter_count, indexer 
 			
 			// reset temporary resulats
 			temp_res[idxx] = -1;
-			temp_res2[idxx] = -1;
+			//temp_res2[idxx] = -1;
 			temp_res_flag[idxx] = -1;
 			__syncthreads();
 		}

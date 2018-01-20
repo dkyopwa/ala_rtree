@@ -83,7 +83,10 @@ int main()
 		try_find5_cuda(nd, lll, count_of_leafs);
 #endif //USE_CUDA
 		lprintf("end");
-	}
+#ifdef CALC_POINT
+		//lprintf("=== POINT ===");
+#endif // CALC_POINT
+		}
 
 	if (lll)
 		_aligned_free(lll);
