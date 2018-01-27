@@ -5,13 +5,13 @@
 #include <stdio.h>
 #include <cuda_runtime_api.h>
 #include <time.h>
-//#include <math.h>
+#include <math.h>
 #include <float.h>
 //#include <cuda_runtime.h>
 #include "unimem.h"
 #include "first.h"
 
-#define DEBUG_CUDA_INFO
+//#define DEBUG_CUDA
 #define MAX_RESULTS 100000
 #define PACK_RESULTS
 
@@ -151,7 +151,7 @@ bool init_cuda_device(int deviceID, struct node* node)
 	er1 = cudaSetDevice(deviceID);
 	cudaSetDeviceFlags(cudaDeviceMapHost);
 	er1 = cudaGetDeviceProperties(&prop, deviceID);
-	m_threads_count = prop.multiProcessorCount * prop.warpSize;
+	m_threads_count = prop.multiProcessorCount * prop.warpSize * 2;
 	//er1 = cudaMalloc((void**)&dev_threads_count, sizeof(unsigned));
 	er1 = cudaMemcpyToSymbol(dev_threads_count, &m_threads_count, sizeof(unsigned));
 
@@ -377,11 +377,10 @@ bool destroy_cuda_device()
 extern "C"
 #if defined(CALC_CIRCLE) || defined(CALC_POINT)
 /* searchin items in selected rectangle on cuda device */
-indexer* cuda_search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
+indexer* cuda_search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items);
 /* searchin items in selected rectangle on cuda device imlementation */
-__global__ void cuda_search_rect2_impl1(void **nd, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
-__global__ void cuda_search_rect2_impl2(void **nd, int *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items);
-__global__ void cuda_search_rect2_impl3(indexer *unpack_idxs, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items);
+__global__ void cuda_search_rect2_impl1(void **nd, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd);
+__global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *atomic_iter, /*out*/ indexer *idxs);
 #else
 indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items)
 __global__ indexer* search_rect2_impl(void *nd_ptr, indexer iter_count, /*out*/indexer *count_items)
@@ -389,7 +388,7 @@ __global__ indexer* search_rect2_impl(void *nd_ptr, indexer iter_count, /*out*/i
 
 #if defined(CALC_CIRCLE) || defined(CALC_POINT)
 /* searchin items in selected rectangle on cuda device */
-indexer* cuda_search_rect2(node * nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, indexer * count_items, ret_callback2_circle callback, void * data)
+indexer* cuda_search_rect2(node * nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, indexer * count_items)
 #else
 indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items)
 #endif // CALC_POINT
@@ -415,87 +414,93 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	cudaDeviceProp prop;
 	er1 = cudaGetDevice(&device_id);
 	er1 = cudaGetDeviceProperties(&prop, device_id);
-	dim3 grid_size = dim3(prop.multiProcessorCount, 1, 1), block_size = dim3(prop.warpSize, 1, 1);
+	dim3 grid_size = dim3(prop.multiProcessorCount, 1, 1), block_size = dim3(prop.warpSize * 2, 1, 1);
 	// store boundaries
 	boundaries b1;
 	b1.intersection = intersection; b1.x_max = x_max; b1.x_min = x_min; b1.y_max = y_max; b1.y_min = y_min;
 	//cudaMalloc((void**)dev_bonds, sizeof(struct boundaries));
-	cudaMemcpyToSymbolAsync(dev_bonds, &b1, sizeof(struct boundaries), 0, cudaMemcpyHostToDevice, stream);
+	er1 = cudaMemcpyToSymbolAsync(dev_bonds, &b1, sizeof(struct boundaries), 0, cudaMemcpyHostToDevice, stream);
 	// for store count of iterations to next step
 	indexer *dev_atomic_iter = NULL;
-	cudaMalloc((void**)&dev_atomic_iter, sizeof(indexer));
-	cudaMemsetAsync(dev_atomic_iter, 0, 1, stream);
+	er1 = cudaMalloc((void**)&dev_atomic_iter, sizeof(indexer));
+	er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
 	// store pointers for next step
 	void **dev_ptr = NULL, **dev_ptr2 = NULL;
-	cudaMalloc((void**)&dev_ptr, sizeof(void*) * m_count_branches);
+	er1 = cudaMalloc((void**)&dev_ptr, sizeof(void*) * m_count_branches);
 	//printf("======================= 0x%llx; 0x%llx, count_br = %u\n", &m_dev_node, m_dev_node, m_count_branches);
 	void **tptr = (void**)(&m_dev_node);
-	cudaMemcpyAsync(dev_ptr, tptr, sizeof(void*), cudaMemcpyHostToDevice, stream);
-	cudaMalloc((void**)&dev_ptr2, sizeof(void*) * m_count_branches);
+	er1 = cudaMemcpyAsync(dev_ptr, tptr, sizeof(void*), cudaMemcpyHostToDevice, stream);
+	er1 = cudaMalloc((void**)&dev_ptr2, sizeof(void*) * m_count_branches);
 	//printf("======================= 0x%llx; 0x%llx; dev_ptr = 0x%llx\n", &m_dev_node, m_dev_node, dev_ptr);
 	// count items
 	indexer *dev_count_items = NULL;
-	cudaMalloc((void**)&dev_count_items, sizeof(indexer));
+	er1 = cudaMalloc((void**)&dev_count_items, sizeof(indexer));
 	// count of iterations
 	indexer *dev_iter_count = NULL;
-	cudaMalloc((void**)&dev_iter_count, sizeof(indexer));
-	cudaMemsetAsync(dev_iter_count, 1, 1, stream);
-	cudaStreamSynchronize(stream);
+	er1 = cudaMalloc((void**)&dev_iter_count, sizeof(indexer));
+	er1 = cudaMemsetAsync(dev_iter_count, 0, sizeof(indexer), stream);
+	er1 = cudaMemsetAsync(dev_iter_count, 1, 1, stream);
+	er1 = cudaStreamSynchronize(stream);
 
-	indexer atomic_iter = 0;
+	indexer atomic_iter = 1;
 
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start, stream);
+#ifdef DEBUG_CUDA
+	er1 = cudaEventCreate(&start);
+	er1 = cudaEventCreate(&stop);
+	er1 = cudaEventRecord(start, stream);
+#endif
 	
 	// calculating nodes
 	for (int i = 0; i < m_length_of_tree + 1; ++i) {
 		er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
-		cuda_search_rect2_impl1 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, dev_iter_count, dev_atomic_iter, dev_ptr2, dev_idxs, count_items, callback, data);
+		if (atomic_iter > prop.warpSize * 2) {
+			unsigned t = (unsigned)ceil((double)atomic_iter / (double)(prop.warpSize * 2.0));
+			block_size = dim3(prop.warpSize * 2, 1, 1);
+			grid_size = dim3(t, 1, 1);
+		}
+		else {
+			grid_size = dim3(1, 1, 1);
+			block_size = dim3(atomic_iter, 1, 1);
+		}
+		cuda_search_rect2_impl1 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, dev_iter_count, dev_atomic_iter, dev_ptr2);
 
 		er1 = cudaMemcpyAsync(&atomic_iter, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 		er1 = cudaMemcpyAsync(dev_ptr, dev_ptr2, sizeof(void*) * atomic_iter, cudaMemcpyDeviceToDevice, stream);
 		er1 = cudaMemcpyAsync(dev_iter_count, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToDevice, stream);
 		cudaStreamSynchronize(stream);
-		printf("===== Iter %i: next = %u (%s)\n", i, atomic_iter, er1 == cudaSuccess ? "true" : "false");
+		//printf("===== Iter %i: next = %u (%s)\n", i, atomic_iter, er1 == cudaSuccess ? "true" : "false");
 		//cudaThreadSynchronize();
 	}
-
-	cudaEventRecord(stop, stream);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&gtime, start, stop);
+#ifdef DEBUG_CUDA
+	er1 = cudaEventRecord(stop, stream);
+	er1 = cudaEventSynchronize(stop);
+	er1 = cudaEventElapsedTime(&gtime, start, stop);
 	printf("Kernel 1 time = %f ms\n", gtime);
+#endif
 
 	// calculating branches
 	grid_size = dim3(atomic_iter, 1, 1);
-	cudaEventRecord(start, stream);
+	block_size = dim3(prop.warpSize * 2, 1, 1);
+#ifdef DEBUG_CUDA
+	er1 = cudaEventRecord(start, stream);
+#endif
 	er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
-	cuda_search_rect2_impl2 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, NULL, dev_atomic_iter, dev_ptr2, dev_idxs, count_items);
+	cuda_search_rect2_impl2 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, dev_atomic_iter, dev_idxs);
 	er1 = cudaMemcpyAsync(&atomic_iter, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
-	cudaStreamSynchronize(stream);
-	cudaThreadSynchronize();
-	cudaEventRecord(stop, stream);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&gtime, start, stop);
+	er1 = cudaStreamSynchronize(stream);
+	er1 = cudaThreadSynchronize();
+#ifdef DEBUG_CUDA
+	er1 = cudaEventRecord(stop, stream);
+	er1 = cudaEventSynchronize(stop);
+	er1 = cudaEventElapsedTime(&gtime, start, stop);
 	printf("Kernel 2 time = %f ms\n", gtime);
+#endif
 
-	/*grid_size = dim3(prop.multiProcessorCount, 1, 1);
-	cudaEventRecord(start, stream);
-	er1 = cudaMemcpyAsync(dev_iter_count, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToDevice, stream);
-	er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
-	cuda_search_rect2_impl3 << <grid_size, block_size, 0, stream >> > (dev_tmp_idxs, dev_iter_count, dev_atomic_iter, dev_ptr2, dev_idxs, count_items);
-	cudaStreamSynchronize(stream);
-	cudaThreadSynchronize();
-	cudaEventRecord(stop, stream);
-	cudaEventSynchronize(stop);
-	cudaEventElapsedTime(&gtime, start, stop);
-	printf("Kernel 3 time = %f ms\n", gtime);*/
-
-	cudaMemcpyAsync(count_items, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
+	er1 = cudaMemcpyAsync(count_items, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 
 	indexer *idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * *count_items);
 	er1 = cudaMemcpyAsync(idxs, host_idxs, sizeof(indexer) * *count_items, cudaMemcpyHostToHost, stream);
-	cudaStreamSynchronize(stream);
+	er1 = cudaStreamSynchronize(stream);
 
 	// freeing and destroying
 	cudaStreamDestroy(stream);
@@ -506,9 +511,11 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	er1 = cudaFree(dev_tmp_idxs);
 	er1 = cudaFree(dev_count_items);
 	er1 = cudaFree(dev_atomic_iter);
-	cudaEventDestroy(stop);
-	cudaEventDestroy(start);
-	cudaFreeHost(host_idxs);
+	er1 = cudaFreeHost(host_idxs);
+#ifdef DEBUG_CUDA
+	er1 = cudaEventDestroy(stop);
+	er1 = cudaEventDestroy(start);
+#endif
 
 #ifdef PACK_RESULTS
 	if (*count_items) {
@@ -519,6 +526,8 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 			if (idxs[i] == idxs[i + 1 + offset]) {
 				offset++;
 				idxs[i + 1] = idxs[i + 1 + offset];
+				i--;
+				continue;
 			}
 			if (offset)
 				idxs[i + 1] = idxs[i + 1 + offset];
@@ -532,17 +541,16 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 }
 
 /* searchin items in selected rectangle on cuda device imlementation (step 1) */
-__global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, indexer *atomic_iter, /*out*/ void** next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items, ret_callback2_circle callback, void *data)
+__global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, indexer *atomic_iter, /*out*/ void** next_nd)
 {
-	int idxx = threadIdx.x + blockIdx.x * blockDim.x;
-	//printf("Thread = %u\n", idxx);
-	//int idxx_t = idxx % (*dev_threads_count);
-	indexer iter_count_t = *iter_count % (*dev_threads_count);
-	if (!iter_count_t)
-		iter_count_t = *iter_count;
+	int idxx = threadIdx.x;
 
-	//if (!idxx)
-	//	printf("Calc NODE iter_count = %u (0x%llx)\n", *iter_count, iter_count);
+	// to temporary store node index
+	__shared__ indexer store[64];
+	store[threadIdx.x] = (indexer)-1;
+	__shared__ int store_idx[1];
+	if (!threadIdx.x)
+		store_idx[threadIdx.x] = 0;
 
 	struct node** nd = (struct node**)nd_ptr;
 	//indexer idx = 0;
@@ -551,33 +559,24 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 	//coord tmp_dist = FLT_MAX;
 	//indexer tmp_idx = -1;
 #endif // CALC_POINT
-	int t = (int)ceilf((float)*iter_count / (float)*dev_threads_count);
-	int t1 = t - 1;
-	for (int j = 0; j < t; ++j) {
-		//printf("Thread = %i, j = %u, t1 = %u, idxx = %u, >= iter_count_t = %u (%s => %s)\n", idxx, j, t1, idxx, iter_count_t, idxx >= iter_count_t ? "true" : "false", j == t1 && idxx >= iter_count_t ? "true" : "false");
-		if (j == t1 && idxx >= iter_count_t) {// idxx_t >= *iter_count) {
-			return;
-		}
-		//printf("Thread %i (%i): x1 = %f, x2 = %f, y1 = %f, y2 = %f\n", idxx + j * (*dev_threads_count), j, nd[idxx + j * (*dev_threads_count)]->x1, nd[idxx + j * (*dev_threads_count)]->x2, nd[idxx + j * (*dev_threads_count)]->y1, nd[idxx + j * (*dev_threads_count)]->y2);
+	indexer curr_indexer = idxx + blockIdx.x * blockDim.x; // (*dev_threads_count);
+	if (curr_indexer < *iter_count) {
+		struct node *curr_nd = nd[curr_indexer];
+		__shared__ coord nd_x1[64], nd_x2[64], nd_y1[64], nd_y2[64];
+		nd_x1[threadIdx.x] = curr_nd->x1;
+		nd_x2[threadIdx.x] = curr_nd->x2;
+		nd_y1[threadIdx.x] = curr_nd->y1;
+		nd_y2[threadIdx.x] = curr_nd->y2;
+			
 		// node in bounrary or bounrary in node
-		if (nd[idxx + j * (*dev_threads_count)]->x1 <= dev_bonds->x_max && nd[idxx + j * (*dev_threads_count)]->x2 >= dev_bonds->x_min && nd[idxx + j * (*dev_threads_count)]->y1 <= dev_bonds->y_max && nd[idxx + j * (*dev_threads_count)]->y2 >= dev_bonds->y_min) {
-			//printf("Thread %i (%i) ================================ ====\n", idxx + j * (*dev_threads_count), j);
-			// check node fully in the boundary
-			//if (nd[idxx].x1 >= dev_bonds->x_min && nd[idxx].y1 >= dev_bonds->y_min && nd[idxx].x2 <= dev_bonds->x_max && nd[idxx].y2 <= dev_bonds->y_max) {
-				// node is fully in the boundary
-			//}
-			//else {
+		if (nd_x1[threadIdx.x] <= dev_bonds->x_max && nd_x2[threadIdx.x] >= dev_bonds->x_min && nd_y1[threadIdx.x] <= dev_bonds->y_max && nd_y2[threadIdx.x] >= dev_bonds->y_min) {
 				// node isn't fully in the boundary, than add to calculation to next iteration
-				indexer t1 = atomicAdd(atomic_iter, nd[idxx + j * (*dev_threads_count)]->count_child_nodes);
+				indexer t3 = atomicAdd(atomic_iter, curr_nd->count_child_nodes);
 				//printf("Increase %i: %u to %u (%u)\n", idxx, t1, *atomic_iter, nd[idxx]->count_child_nodes);
-				/*if (t1 + nd->count_child_nodes >= 10000)
-					return; */
-				for (unsigned k = t1, t2 = 0; k < t1 + nd[idxx + j * (*dev_threads_count)]->count_child_nodes; ++k, ++t2) {
-					//void **ptr = &next_nd;
-					next_nd[k] = nd[idxx + j * (*dev_threads_count)]->child_node[t2];
-					//printf("Next index = %u\n", (struct branch*)(nd[idxx + j * (*dev_threads_count)]->child_node[t2]) - m_ttt_cuda_first_branch);
+				for (unsigned k = t3, t2 = 0; k < t3 + curr_nd->count_child_nodes; ++k, ++t2) {
+					next_nd[k] = curr_nd->child_node[t2];
+					//printf("Next index = %u\n", (struct branch*)(nd[curr_indexer]->child_node[t2]) - m_ttt_cuda_first_branch);
 				}
-			//}
 		}
 		else {
 			// node and boundary isn't intersection
@@ -586,232 +585,87 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 }
 
 /* searchin items in selected rectangle on cuda device imlementation (step 1) */
-__global__ void cuda_search_rect2_impl2(void **br_ptr, int *iter_count, indexer *atomic_iter, /*out*/ void** next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items)
+__global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *atomic_iter, /*out*/ indexer *idxs)
 {
 	int idxx = threadIdx.x;
 	int idx_gr_br = blockIdx.x;
-	//printf("Thread = %u\n", idxx);
-	//if (!idxx /*&& !idx_gr_br*/)
-	//	printf("============================================== block = %d, %u\n", idx_gr_br, *atomic_iter);
 
 	// for store temporary results
-	__shared__ indexer temp_res[33]; // must be as blockDim.x size + 1 (for rpevious result)
-	//__shared__ indexer temp_res2[32];
-	__shared__ char temp_res_flag[32];
-	//__shared__ int atom_index[1];
+	__shared__ indexer temp_res[65]; // must be as blockDim.x size + 1 (for rpevious result)
+	__shared__ char temp_res_flag[64];
 	temp_res[idxx] = (indexer)-1;
-	//temp_res2[idxx] = (indexer)-1;
-	if (!idxx)
-		temp_res[32] = (indexer)-1;
 	temp_res_flag[idxx] = -1;
-	//__shared__ int index = 0;
+	if (!idxx)
+		temp_res[64] = (indexer)-1;
 
-	//if (!idxx)
-	//	printf("Calc BR iter_count = %u (0x%llx), grid.x = %i\n", *iter_count, iter_count, idx_gr_br);
-
-	//struct branch* br = (struct branch*)br_ptr[0];
 	struct branch** br = (struct branch**)br_ptr;
-	//if (!idxx)
-	//printf("Thread branch %i: x1 = %f, x2 = %f, y1 = %f, y2 = %f (u)\n", idx_gr_br, br[idx_gr_br]->x_min, br[idx_gr_br]->x_max, br[idx_gr_br]->y_min, br[idx_gr_br]->y_max); // , br[idx_gr_br] - m_ttt_cuda_first_branch);
+	struct branch *curr_br = br[idx_gr_br];
 
-	if (br[idx_gr_br]->x_min <= dev_bonds->x_max && br[idx_gr_br]->x_max >= dev_bonds->x_min && br[idx_gr_br]->y_min <= dev_bonds->y_max && br[idx_gr_br]->y_max >= dev_bonds->y_min) {
-		//if (!idxx)
-		//	printf("------------------ %i, %u\n", idx_gr_br, br[idx_gr_br]->count_shapes);
-		//int idxx_t = idxx % blockDim.x;
-		int t = (int)ceilf((float)br[idx_gr_br]->count_leafs / (float)blockDim.x);
-		int t1 = t - 1;
+	if (curr_br->x_min <= dev_bonds->x_max && curr_br->x_max >= dev_bonds->x_min && curr_br->y_min <= dev_bonds->y_max && curr_br->y_max >= dev_bonds->y_min) {
+		int t = (int)ceilf((float)curr_br->count_leafs / (float)blockDim.x);
 		for (int j = 0; j < t; ++j) {
-			int curr_offset = j * blockDim.x;
-			if (j == t1 && idxx + curr_offset >= br[idx_gr_br]->count_leafs) {
-				break;
-			}
-
-			// check points to enter to boundary
-			if (br[idx_gr_br]->leaf_x[idxx + curr_offset] >= dev_bonds->x_min && br[idx_gr_br]->leaf_x[idxx + curr_offset] <= dev_bonds->x_max && br[idx_gr_br]->leaf_y[idxx + curr_offset] >= dev_bonds->y_min && br[idx_gr_br]->leaf_y[idxx + curr_offset] <= dev_bonds->y_max) {
-				temp_res[idxx] = br[idx_gr_br]->leaf_number[idxx + curr_offset];
-				/*int t2 = atomicAdd(atomic_iter, 1);
-				if (t2 >= MAX_RESULTS - 1) {
-					// can not store result
-					atomicSub(atomic_iter, 1);
-				}
-				else {
-					// can store result
-					//idxs[t2] = 
-				}*/
-			}
-			//if (!idxx)
-			//	atom_index[0] = 0;
-			__syncthreads();
-
-			// fill empty places
-			/*if (temp_res2[idxx] != (indexer)-1) {
-				int t2 = atomicAdd(atom_index, 1);
-				temp_res[t2] = temp_res2[idxx];
-				printf("Temp (%i): %i => %i, res = %u (%u)\n", idxx, t2, atom_index[0], temp_res[t2], temp_res2[idxx]);
-				if (t2 >= 32)
-					printf("Vai vai vai %i => %i\n", t2, atom_index[0]);
-			}
-			//__threadfence();
-			__syncthreads();
-			if (!idxx)
-			printf("1 === %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",
-				temp_res[0], temp_res[1], temp_res[2], temp_res[3], temp_res[4], temp_res[5], temp_res[6], temp_res[7], temp_res[8], temp_res[9],
-				temp_res[10], temp_res[11], temp_res[12], temp_res[13], temp_res[14], temp_res[15], temp_res[16], temp_res[17], temp_res[18], temp_res[19],
-				temp_res[20], temp_res[21], temp_res[22], temp_res[23], temp_res[24], temp_res[25], temp_res[26], temp_res[27], temp_res[28], temp_res[29],
-				temp_res[30], temp_res[31]);*/
-
-			// packing temporary results
-			if (temp_res[idxx] == temp_res[idxx + 1]) {
-				__threadfence();
-				temp_res[idxx + 1] = -1;
-				//__threadfence();
-				//if (temp_res[idxx] != -1)
-				//	printf("Index of equals items = %u + %u => %u\n", idxx, idxx + 1, temp_res[idxx + 1]);
-			}
-			else {
-				//__threadfence();
-			}
-			__syncthreads();
-			/*if (!idxx)
-			printf("2 === %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",
-				temp_res[0], temp_res[1], temp_res[2], temp_res[3], temp_res[4], temp_res[5], temp_res[6], temp_res[7], temp_res[8], temp_res[9],
-				temp_res[10], temp_res[11], temp_res[12], temp_res[13], temp_res[14], temp_res[15], temp_res[16], temp_res[17], temp_res[18], temp_res[19],
-				temp_res[20], temp_res[21], temp_res[22], temp_res[23], temp_res[24], temp_res[25], temp_res[26], temp_res[27], temp_res[28], temp_res[29],
-				temp_res[30], temp_res[31]);*/
-			// ckeck for previous result
-			if (!idxx) {
-				//if (temp_res[0] != (unsigned)-1) printf("%i:%i Prev step = %u (%u)\n", idx_gr_br, j, temp_res[32], temp_res[0]);
-				if (temp_res[32] == temp_res[0]) {
-					//if (temp_res[0] != (unsigned)-1) printf("From prev step = %u\n", temp_res[0]);
-					temp_res[0] = -1;
-				}
-			}
-			//__syncthreads();
-
-			// store temporary results to global array2
-			if (temp_res[idxx] != -1) {
-				int t2 = atomicAdd(atomic_iter, 1);
-				if (t2 >= MAX_RESULTS - 1) {
-					// can not store result
-					atomicSub(atomic_iter, 1);
-				}
-				else {
-					// can store result (idxs2 - temporary)
-					idxs[t2] = temp_res[idxx];
-					//printf("Number = %u, value = %u (%u)\n", t2, temp_res[idxx], idxs[t2]);
-					temp_res_flag[idxx] = idxx;
-					//printf("Increase %i: %u to %u\n", idxx, t2, *iter_count);
-				}
-			}
-
-			__syncthreads();
-
-			// store previous result
-			for (int t2 = blockDim.x / 2; t2 > 0; t2 >>= 1)
-			{
-				if (idxx < t2) {
-					if (temp_res_flag[idxx] < temp_res_flag[idxx + t2])
-						temp_res_flag[idxx] = temp_res_flag[idxx + t2];
+			int curr_idx = idxx + j * blockDim.x; // curr_offset;
+			if (/*j == t1 && */curr_idx < curr_br->count_leafs) {
+				// check points to enter to boundary
+				if (curr_br->leaf_x[curr_idx] >= dev_bonds->x_min && curr_br->leaf_x[curr_idx] <= dev_bonds->x_max && curr_br->leaf_y[curr_idx] >= dev_bonds->y_min && curr_br->leaf_y[curr_idx] <= dev_bonds->y_max) {
+					temp_res[idxx] = curr_br->leaf_number[curr_idx];
 				}
 				__syncthreads();
-			}
-			if (!idxx) {
-				if (temp_res_flag[idxx] != -1) {
-					//printf("INDEX === %u\n", temp_res_flag[idxx]);
-					temp_res[32] = temp_res[temp_res_flag[idxx]]; // idxs[idxx];
+
+				// packing temporary results
+				if (temp_res[idxx] == temp_res[idxx + 1]) {
+					__threadfence();
+					temp_res[idxx + 1] = -1;
 				}
-				//if (temp_res[32] != (unsigned)-1) printf("%i:%i Next step = %u\n", idx_gr_br, j, temp_res[32]);
+				else {
+					//__threadfence();
+				}
+				__syncthreads();
+
+				if (!idxx) {
+					if (temp_res[64] == temp_res[0]) {
+						temp_res[0] = -1;
+					}
+				}
+				//__syncthreads();
+
+				// store temporary results to global array2
+				if (temp_res[idxx] != -1) {
+					int t2 = atomicAdd(atomic_iter, 1);
+					if (t2 >= MAX_RESULTS - 1) {
+						// can not store result
+						atomicSub(atomic_iter, 1);
+					}
+					else {
+						// can store result (idxs2 - temporary)
+						idxs[t2] = temp_res[idxx];
+						temp_res_flag[idxx] = idxx;
+					}
+				}
+
+				__syncthreads();
+
+				// store previous result
+				for (int t2 = blockDim.x / 2; t2 > 0; t2 >>= 1)
+				{
+					if (idxx < t2) {
+						if (temp_res_flag[idxx] < temp_res_flag[idxx + t2])
+							temp_res_flag[idxx] = temp_res_flag[idxx + t2];
+					}
+					__syncthreads();
+				}
+				if (!idxx) {
+					if (temp_res_flag[idxx] != -1) {
+						temp_res[64] = temp_res[temp_res_flag[idxx]]; // idxs[idxx];
+					}
+				}
+
+				// reset temporary resulats
+				temp_res[idxx] = -1;
+				//temp_res2[idxx] = -1;
+				temp_res_flag[idxx] = -1;
+				__syncthreads();
 			}
-			
-			// reset temporary resulats
-			temp_res[idxx] = -1;
-			//temp_res2[idxx] = -1;
-			temp_res_flag[idxx] = -1;
-			__syncthreads();
-		}
-	}
-}
-
-__global__ void cuda_search_rect2_impl3(indexer *unpack_idxs, indexer *iter_count, indexer *atomic_iter, /*out*/ void **next_nd, /*out*/ indexer *idxs, /*out*/indexer *count_items)
-{
-	int idxx = threadIdx.x + blockIdx.x * blockDim.x;
-
-	// for store temporary results
-	__shared__ indexer temp_res[33]; // must be as blockDim.x size + 1 (for rpevious result)
-	__shared__ char temp_res_flag[32];
-	temp_res[idxx] = (indexer)-1;
-	if (!idxx)
-		temp_res[32] = (indexer)-1;
-	temp_res_flag[idxx] = -1;
-
-	int t = (int)ceilf((float)*iter_count / (float)blockDim.x);
-	int t1 = t - 1;
-	temp_res[idxx] = -1;
-	temp_res_flag[idxx] = -1;
-	if (!idxx) {
-		temp_res[32] = -1;
-		printf("---------------------- Count temp results = %u (t = %i) ------------------\n", *iter_count, t);
-	}
-
-	for (int j = 0; j < t; ++j) {
-		int curr_offset = j * blockDim.x;
-		if (j == t1 && idxx + curr_offset >= *iter_count) {
-			break;
-		}
-		temp_res[idxx] = unpack_idxs[idxx + curr_offset];
-
-		if (temp_res[idxx] == temp_res[idxx + 1]) {
-			__threadfence();
-			temp_res[idxx + 1] = -1;
-		}
-		__syncthreads();
-
-		if (!idxx) {
-			if (temp_res[32] == temp_res[0]) {
-				temp_res[0] = -1;
-			}
-		}
-
-		//__threadfence();
-		if (temp_res[idxx] == 2501949) {
-			printf("1 =========================================================== 250 ======================================== %i, j = %i\n", idxx, j);
-			printf("1 === %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i, %i\n",
-				temp_res[0], temp_res[1], temp_res[2], temp_res[3], temp_res[4], temp_res[5], temp_res[6], temp_res[7], temp_res[8], temp_res[9],
-				temp_res[10], temp_res[11], temp_res[12], temp_res[13], temp_res[14], temp_res[15], temp_res[16], temp_res[17], temp_res[18], temp_res[19],
-				temp_res[20], temp_res[21], temp_res[22], temp_res[23], temp_res[24], temp_res[25], temp_res[26], temp_res[27], temp_res[28], temp_res[29],
-				temp_res[30], temp_res[31]);
-		}
-
-		// store results to global array
-		if (temp_res[idxx] != -1) {
-			int t2 = atomicAdd(atomic_iter, 1);
-			if (t2 >= MAX_RESULTS - 1) {
-				// can not store result
-				atomicSub(atomic_iter, 1);
-			}
-			else {
-				// can store result (idxs2 - temporary)
-				idxs[t2] = temp_res[idxx];
-				//printf("Number = %u, value = %u (%u)\n", t2, temp_res[idxx], idxs[t2]);
-				temp_res_flag[idxx] = idxx;
-				//printf("Increase %i: %u to %u\n", idxx, t2, *iter_count);
-			}
-		}
-		// store previous result
-		for (int t2 = blockDim.x / 2; t2 > 0; t2 >>= 1)
-		{
-			if (idxx < t2) {
-				if (temp_res_flag[idxx] < temp_res_flag[idxx + t2])
-					temp_res_flag[idxx] = temp_res_flag[idxx + t2];
-			}
-			__syncthreads();
-		}
-		if (!idxx) {
-			if (temp_res_flag[idxx] != -1) {
-				//printf("INDEX === %u\n", temp_res_flag[idxx]);
-				temp_res[32] = temp_res[temp_res_flag[idxx]]; // idxs[idxx];
-			}
-			//if (temp_res[32] != (unsigned)-1) printf("%i:%i Next step = %u\n", idx_gr_br, j, temp_res[32]);
 		}
 	}
 }

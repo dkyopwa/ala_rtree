@@ -45,7 +45,7 @@ void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 extern "C"
 #if defined(CALC_CIRCLE) || defined(CALC_POINT)
 /* searchin items in selected rectangle on cuda device */
-indexer* cuda_search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items, ret_callback2_circle callback = NULL, void *data = NULL);
+indexer* cuda_search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items);
 #endif // CALC_POINT
 void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 #endif // USE_CUDA
@@ -703,11 +703,29 @@ void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
+	int count_iter = 1;
+
 	indexer count_items1 = 0, count_items2 = 0;
-	coord dist;
-	indexer *idxs1 = search_rect2(nd, -180, 1, 1, 1.5, false, &count_items1); //-180, -87, 180, -86.6
+	//coord dist;
+	clock_t t1 = clock();
+	indexer *idxs1 = NULL;
+	for (int i = 0; i < count_iter; ++i) {
+		idxs1 = search_rect2(nd, -180, 1, 1, 1.5, false, &count_items1); //-180, -87, 180, -86.6
+		if (i != count_iter - 1)
+			_aligned_free(idxs1);
+	}
+	clock_t t2 = clock();
+	printf("Time to calculate on CPU: %d, iter = %i\n", t2 - t1, count_iter);
 #ifdef USE_CUDA
-	indexer *idxs2 = cuda_search_rect2(nd, -180, 1, 1, 1.5, false, &count_items2);
+	t1 = clock();
+	indexer *idxs2 = NULL;
+	for (int i = 0; i < count_iter; ++i) {
+		idxs2 = cuda_search_rect2(nd, -180, 1, 1, 1.5, false, &count_items2);
+		if (i != count_iter - 1)
+			_aligned_free(idxs2);
+	}
+	t2 = clock();
+	printf("Time to calculate on GPU: %d, iter = %i\n", t2 - t1, count_iter);
 #endif
 	if (count_items1 != count_items2 && count_items2 != 99999) {
 		printf("Error in count items: %u vs %u\n", count_items1, count_items2);

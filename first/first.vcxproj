@@ -154,6 +154,11 @@
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <AdditionalDependencies>cudart.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <CudaCompile>
+      <TargetMachinePlatform>64</TargetMachinePlatform>
+      <FastMath>true</FastMath>
+      <Optimization>O2</Optimization>
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="first.cpp" />
