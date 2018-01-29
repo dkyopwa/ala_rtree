@@ -703,7 +703,7 @@ void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 
 void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 {
-	int count_iter = 1;
+	int count_iter = 100;
 
 	indexer count_items1 = 0, count_items2 = 0;
 	//coord dist;

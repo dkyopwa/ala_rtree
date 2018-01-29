@@ -13,7 +13,7 @@
 
 //#define DEBUG_CUDA
 #define MAX_RESULTS 100000
-#define PACK_RESULTS
+//#define PACK_RESULTS
 
 struct boundaries {
 	coord x_min;
@@ -29,6 +29,8 @@ __constant__ unsigned dev_threads_count[1];
 unsigned m_threads_count;
 indexer m_count_branches;
 int m_length_of_tree = 0;
+int m_multi_processor_count = 1;
+int m_warp_size2 = 64;
 
 //__constant__ struct branch *m_ttt_cuda_first_branch = NULL;
 
@@ -151,6 +153,8 @@ bool init_cuda_device(int deviceID, struct node* node)
 	er1 = cudaSetDevice(deviceID);
 	cudaSetDeviceFlags(cudaDeviceMapHost);
 	er1 = cudaGetDeviceProperties(&prop, deviceID);
+	m_multi_processor_count = prop.multiProcessorCount;
+	m_warp_size2 = prop.warpSize * 2;
 	m_threads_count = prop.multiProcessorCount * prop.warpSize * 2;
 	//er1 = cudaMalloc((void**)&dev_threads_count, sizeof(unsigned));
 	er1 = cudaMemcpyToSymbol(dev_threads_count, &m_threads_count, sizeof(unsigned));
@@ -402,19 +406,24 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	cudaStream_t stream;
 	cudaStreamCreate(&stream);
 
-	indexer *host_idxs = NULL, *dev_idxs = NULL, *dev_tmp_idxs = NULL;;
+	/*indexer *host_idxs = NULL, *dev_idxs = NULL; // , *dev_tmp_idxs = NULL;;
 	cudaHostAlloc((void**)&host_idxs, sizeof(indexer) * MAX_RESULTS, cudaHostAllocMapped);
 	cudaHostGetDevicePointer((void**)&dev_idxs, host_idxs, 0);
-	cudaMalloc((void**)&dev_tmp_idxs, sizeof(indexer) * MAX_RESULTS);
+	//cudaMalloc((void**)&dev_tmp_idxs, sizeof(indexer) * MAX_RESULTS);
+	*/
+	indexer *dev_idxs = NULL;
+	cudaMalloc((void**)&dev_idxs, sizeof(indexer) * MAX_RESULTS);
 
 	// searching
 	cudaEvent_t start, stop;
 	float gtime = 0.0;
 	int device_id;
-	cudaDeviceProp prop;
+	/*cudaDeviceProp prop;
 	er1 = cudaGetDevice(&device_id);
 	er1 = cudaGetDeviceProperties(&prop, device_id);
 	dim3 grid_size = dim3(prop.multiProcessorCount, 1, 1), block_size = dim3(prop.warpSize * 2, 1, 1);
+	*/
+	dim3 grid_size = dim3(m_multi_processor_count, 1, 1), block_size = dim3(m_warp_size2, 1, 1);
 	// store boundaries
 	boundaries b1;
 	b1.intersection = intersection; b1.x_max = x_max; b1.x_min = x_min; b1.y_max = y_max; b1.y_min = y_min;
@@ -436,15 +445,16 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	indexer *dev_count_items = NULL;
 	er1 = cudaMalloc((void**)&dev_count_items, sizeof(indexer));
 	// count of iterations
+	indexer atomic_iter = 1;
 	indexer *dev_iter_count = NULL;
 	er1 = cudaMalloc((void**)&dev_iter_count, sizeof(indexer));
-	er1 = cudaMemsetAsync(dev_iter_count, 0, sizeof(indexer), stream);
-	er1 = cudaMemsetAsync(dev_iter_count, 1, 1, stream);
+	//er1 = cudaMemsetAsync(dev_iter_count, 0, sizeof(indexer), stream);
+	//er1 = cudaMemsetAsync(dev_iter_count, 1, 1, stream);
+	er1 = cudaMemcpyAsync(dev_iter_count, &atomic_iter, sizeof(indexer), cudaMemcpyHostToDevice);
 	er1 = cudaStreamSynchronize(stream);
 
-	indexer atomic_iter = 1;
-
 #ifdef DEBUG_CUDA
+	clock_t t1 = clock();
 	er1 = cudaEventCreate(&start);
 	er1 = cudaEventCreate(&stop);
 	er1 = cudaEventRecord(start, stream);
@@ -453,9 +463,9 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	// calculating nodes
 	for (int i = 0; i < m_length_of_tree + 1; ++i) {
 		er1 = cudaMemsetAsync(dev_atomic_iter, 0, sizeof(indexer), stream);
-		if (atomic_iter > prop.warpSize * 2) {
-			unsigned t = (unsigned)ceil((double)atomic_iter / (double)(prop.warpSize * 2.0));
-			block_size = dim3(prop.warpSize * 2, 1, 1);
+		if (atomic_iter > m_warp_size2 /*prop.warpSize * 2 */) {
+			unsigned t = (unsigned)ceil((double)atomic_iter / (double)(m_warp_size2 /*prop.warpSize * 2.0 */));
+			block_size = dim3(m_warp_size2 /*prop.warpSize * 2 */, 1, 1);
 			grid_size = dim3(t, 1, 1);
 		}
 		else {
@@ -480,7 +490,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 
 	// calculating branches
 	grid_size = dim3(atomic_iter, 1, 1);
-	block_size = dim3(prop.warpSize * 2, 1, 1);
+	block_size = dim3(m_warp_size2 /*prop.warpSize * 2 */, 1, 1);
 #ifdef DEBUG_CUDA
 	er1 = cudaEventRecord(start, stream);
 #endif
@@ -488,18 +498,21 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	cuda_search_rect2_impl2 << <grid_size, block_size, 0, stream >> > ((void**)dev_ptr, dev_atomic_iter, dev_idxs);
 	er1 = cudaMemcpyAsync(&atomic_iter, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 	er1 = cudaStreamSynchronize(stream);
-	er1 = cudaThreadSynchronize();
+	//er1 = cudaThreadSynchronize();
 #ifdef DEBUG_CUDA
 	er1 = cudaEventRecord(stop, stream);
 	er1 = cudaEventSynchronize(stop);
 	er1 = cudaEventElapsedTime(&gtime, start, stop);
 	printf("Kernel 2 time = %f ms\n", gtime);
+	clock_t t2 = clock();
+	printf("All kernels time = %i ms\n", t2 - t1);
 #endif
 
 	er1 = cudaMemcpyAsync(count_items, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
 
 	indexer *idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * *count_items);
-	er1 = cudaMemcpyAsync(idxs, host_idxs, sizeof(indexer) * *count_items, cudaMemcpyHostToHost, stream);
+	//er1 = cudaMemcpyAsync(idxs, host_idxs, sizeof(indexer) * *count_items, cudaMemcpyHostToHost, stream);
+	er1 = cudaMemcpyAsync(idxs, dev_idxs, sizeof(indexer) * *count_items, cudaMemcpyDeviceToHost, stream);
 	er1 = cudaStreamSynchronize(stream);
 
 	// freeing and destroying
@@ -508,10 +521,11 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 	er1 = cudaFree(dev_iter_count);
 	er1 = cudaFree(dev_ptr);
 	er1 = cudaFree(dev_ptr2);
-	er1 = cudaFree(dev_tmp_idxs);
+	//er1 = cudaFree(dev_tmp_idxs);
 	er1 = cudaFree(dev_count_items);
 	er1 = cudaFree(dev_atomic_iter);
-	er1 = cudaFreeHost(host_idxs);
+	//er1 = cudaFreeHost(host_idxs);
+	er1 = cudaFree(dev_idxs);
 #ifdef DEBUG_CUDA
 	er1 = cudaEventDestroy(stop);
 	er1 = cudaEventDestroy(start);
@@ -546,11 +560,12 @@ __global__ void cuda_search_rect2_impl1(void **nd_ptr, indexer *iter_count, inde
 	int idxx = threadIdx.x;
 
 	// to temporary store node index
-	__shared__ indexer store[64];
+	/*__shared__ indexer store[64];
 	store[threadIdx.x] = (indexer)-1;
 	__shared__ int store_idx[1];
 	if (!threadIdx.x)
 		store_idx[threadIdx.x] = 0;
+		*/
 
 	struct node** nd = (struct node**)nd_ptr;
 	//indexer idx = 0;
