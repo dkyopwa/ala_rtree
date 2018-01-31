@@ -43,10 +43,12 @@ extern "C" bool init_cuda_device(int deviceID = -1, struct node* nd = NULL);
 extern "C" bool destroy_cuda_device();
 #endif //USE_CUDA
 
-// globale variables
+/// globale variables
 struct node* m_nodes = NULL;
 //struct center_node_st* m_branch_center = NULL;
 unsigned m_max_added_leafs_in_iter = 100000;
+/// array of old index of leafs (starterd from 1)
+indexer *m_old__leaf_number = NULL;
 
 // for debuging
 //struct branch *m_ttt_first_branch = NULL;
@@ -332,6 +334,62 @@ struct node* create_rtree(struct leaf* lll, unsigned count_of_leafs, unsigned *o
 		}*/
 #endif // PRINT_SVG
 
+		struct node *stack_node[64];
+		int stack_pos = 0;
+		indexer stack_idx[64];
+		indexer i = 0;
+		struct node *nd = m_nodes;
+		indexer number = 0;
+		m_old__leaf_number = (indexer*)aligned_alloc(16, sizeof(indexer) * count_shapes);
+		memset(m_old__leaf_number, 0, sizeof(indexer) * count_shapes);
+		// renumbering leafs in branches
+		while (i < nd->count_child_nodes) {
+			if (nd->is_last_node) {
+				for (unsigned j = 0; j < nd->count_child_nodes; ++j) {
+					struct branch *br = (struct branch*)(nd->child_node[j]);
+					// renumerate
+					indexer t1 = (indexer)-1;
+					for (indexer k = 0; k < br->count_leafs; ++k) {
+						if (t1 == br->leaf_number[k]) {
+							//if (!m_old__leaf_number[number - 1])
+							//	m_old__leaf_number[number - 1] = t1;
+							br->leaf_number[k] = number;
+						}
+						else {
+							number++;
+							t1 = br->leaf_number[k];
+							m_old__leaf_number[number - 1] = t1;
+							br->leaf_number[k] = number;
+						}
+					}
+				}
+				// return from stack
+				while (stack_pos > 0) {
+					stack_pos--;
+					nd = stack_node[stack_pos];
+					i = stack_idx[stack_pos] + 1;
+
+					if (i < nd->count_child_nodes) {
+						stack_idx[stack_pos] = i;
+						stack_node[stack_pos] = nd;
+						stack_pos++;
+						nd = (struct node*)nd->child_node[i];
+						i = 0;
+						break;
+					}
+					else {
+					}
+				}
+			}
+			else {
+				stack_idx[stack_pos] = i;
+				stack_node[stack_pos] = nd;
+				stack_pos++;
+				i = 0;
+				nd = (struct node*)nd->child_node[i];
+			}
+		}
+
 #ifdef USE_CUDA
 		bool er = init_cuda_device(-1, m_nodes);
 		lprintf(er ? "Done 2" : "Cuda error");
@@ -543,6 +601,9 @@ void del_root()
 #ifdef USE_CUDA
 	destroy_cuda_device();
 #endif
+
+	if (m_old__leaf_number)
+		_aligned_free(m_old__leaf_number);
 
 	alignas(16) struct node *nd = m_nodes;
 

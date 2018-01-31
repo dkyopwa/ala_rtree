@@ -710,7 +710,7 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	clock_t t1 = clock();
 	indexer *idxs1 = NULL;
 	for (int i = 0; i < count_iter; ++i) {
-		idxs1 = search_rect2(nd, -180, 1, 1, 1.5, false, &count_items1); //-180, -87, 180, -86.6
+		idxs1 = search_rect2(nd, -100, 1, 1, 1.5, true, &count_items1); //-180, -87, 180, -86.6
 		if (i != count_iter - 1)
 			_aligned_free(idxs1);
 	}
@@ -720,7 +720,7 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	t1 = clock();
 	indexer *idxs2 = NULL;
 	for (int i = 0; i < count_iter; ++i) {
-		idxs2 = cuda_search_rect2(nd, -180, 1, 1, 1.5, false, &count_items2);
+		idxs2 = cuda_search_rect2(nd, -100, 1, 1, 1.5, true, &count_items2);
 		if (i != count_iter - 1)
 			_aligned_free(idxs2);
 	}
@@ -729,6 +729,19 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 #endif
 	if (count_items1 != count_items2 && count_items2 != 99999) {
 		printf("Error in count items: %u vs %u\n", count_items1, count_items2);
+
+		/*for (indexer i = 0; i < count_items1; ++i) {
+			bool fl = false;
+			for (indexer j = 0; j < count_items2; ++j) {
+				if (idxs1[i] == idxs2[j]) {
+					fl = true;
+					break;
+				}
+			}
+			if (!fl) {
+				printf("%u\n", idxs1[i]);
+			}
+		}*/
 
 /*		printf("RESULT 1\n");
 		for (indexer i = 0; i < count_items1; ++i)

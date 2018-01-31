@@ -34,6 +34,8 @@ int m_warp_size2 = 64;
 
 //__constant__ struct branch *m_ttt_cuda_first_branch = NULL;
 
+__device__ bool cuda_check_intersection(coord p1x, coord p1y, coord p2x, coord p2y, coord p3x, coord p3y, coord p4x, coord p4y);
+
 #ifdef PACK_RESULTS
 /// compare
 int cmp(const void* a, const void* b)
@@ -509,11 +511,13 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 #endif
 
 	er1 = cudaMemcpyAsync(count_items, dev_atomic_iter, sizeof(indexer), cudaMemcpyDeviceToHost, stream);
-
 	indexer *idxs = (indexer*)aligned_alloc(16, sizeof(indexer) * *count_items);
 	//er1 = cudaMemcpyAsync(idxs, host_idxs, sizeof(indexer) * *count_items, cudaMemcpyHostToHost, stream);
 	er1 = cudaMemcpyAsync(idxs, dev_idxs, sizeof(indexer) * *count_items, cudaMemcpyDeviceToHost, stream);
 	er1 = cudaStreamSynchronize(stream);
+#ifdef DEBUG_CUDA
+	printf("Total results from device = %u\n", *count_items);
+#endif
 
 	// freeing and destroying
 	cudaStreamDestroy(stream);
@@ -616,14 +620,95 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *atomic_iter, /*o
 	struct branch** br = (struct branch**)br_ptr;
 	struct branch *curr_br = br[idx_gr_br];
 
+	__shared__ indexer start_num[1];
+	if (!idxx)
+		start_num[0] = curr_br->leaf_number[0];
+
 	if (curr_br->x_min <= dev_bonds->x_max && curr_br->x_max >= dev_bonds->x_min && curr_br->y_min <= dev_bonds->y_max && curr_br->y_max >= dev_bonds->y_min) {
 		int t = (int)ceilf((float)curr_br->count_leafs / (float)blockDim.x);
 		for (int j = 0; j < t; ++j) {
 			int curr_idx = idxx + j * blockDim.x; // curr_offset;
 			if (/*j == t1 && */curr_idx < curr_br->count_leafs) {
-				// check points to enter to boundary
-				if (curr_br->leaf_x[curr_idx] >= dev_bonds->x_min && curr_br->leaf_x[curr_idx] <= dev_bonds->x_max && curr_br->leaf_y[curr_idx] >= dev_bonds->y_min && curr_br->leaf_y[curr_idx] <= dev_bonds->y_max) {
+				// loading frequantly using data
+				__shared__ coord leaf_x[65];
+				__shared__ coord leaf_y[65];
+				leaf_x[idxx] = curr_br->leaf_x[curr_idx];
+				leaf_y[idxx] = curr_br->leaf_y[curr_idx];
+				if (!idxx && curr_br->merge_next_leaf[curr_idx + 64]) {
+					leaf_x[64] = curr_br->leaf_x[curr_idx + 64];
+					leaf_y[64] = curr_br->leaf_y[curr_idx + 64];
+				}
+
+				// check points to enter in boundary
+				if (leaf_x[idxx] >= dev_bonds->x_min && leaf_x[idxx] <= dev_bonds->x_max && leaf_y[idxx] >= dev_bonds->y_min && leaf_y[idxx] <= dev_bonds->y_max) {
 					temp_res[idxx] = curr_br->leaf_number[curr_idx];
+				}
+				else if(dev_bonds->intersection) {
+					bool fl1 = false;
+					if (curr_br->merge_next_leaf[curr_idx]) {
+						// last check: intersection
+						// side 1/2
+						if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x[idxx + 1], leaf_y[idxx + 1], dev_bonds->x_min, dev_bonds->y_min, dev_bonds->x_max, dev_bonds->y_min)) {
+							fl1 = true;
+						}
+
+						// side 2/3
+						if (!fl1) {
+							if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x[idxx + 1], leaf_y[idxx + 1], dev_bonds->x_max, dev_bonds->y_min, dev_bonds->x_max, dev_bonds->y_max)) {
+								fl1 = true;
+							}
+						}
+
+						// side 3/4
+						if (!fl1) {
+							if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x[idxx + 1], leaf_y[idxx + 1], dev_bonds->x_max, dev_bonds->y_max, dev_bonds->x_min, dev_bonds->y_max)) {
+								fl1 = true;
+							}
+						}
+
+						// side 4/1
+						if (!fl1) {
+							if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x[idxx + 1], leaf_y[idxx + 1], dev_bonds->x_min, dev_bonds->y_max, dev_bonds->x_min, dev_bonds->y_min)) {
+								fl1 = true;
+							}
+						}
+					}
+					else {
+						indexer curr_num = curr_br->offset[curr_br->leaf_number[curr_idx] - start_num[0]];
+						__shared__ coord leaf_x_offset[64];
+						__shared__ coord leaf_y_offset[64];
+						leaf_x_offset[idxx] = curr_br->leaf_x[curr_num];
+						leaf_y_offset[idxx] = curr_br->leaf_y[curr_num];
+						// side 1/2
+						if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x_offset[idxx], leaf_y_offset[idxx], dev_bonds->x_min, dev_bonds->y_min, dev_bonds->x_max, dev_bonds->y_min)) {
+							fl1 = true;
+						}
+
+						// side 2/3
+						if (!fl1) {
+							if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x_offset[idxx], leaf_y_offset[idxx], dev_bonds->x_max, dev_bonds->y_min, dev_bonds->x_max, dev_bonds->y_max)) {
+								fl1 = true;
+							}
+						}
+
+						// side 3/4
+						if (!fl1) {
+							if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x_offset[idxx], leaf_y_offset[idxx], dev_bonds->x_max, dev_bonds->y_max, dev_bonds->x_min, dev_bonds->y_max)) {
+								fl1 = true;
+							}
+						}
+
+						// side 4/1
+						if (!fl1) {
+							if (cuda_check_intersection(leaf_x[idxx], leaf_y[idxx], leaf_x_offset[idxx], leaf_y_offset[idxx], dev_bonds->x_min, dev_bonds->y_max, dev_bonds->x_min, dev_bonds->y_min)) {
+								fl1 = true;
+							}
+						}
+
+					}
+
+					if (fl1)
+						temp_res[idxx] = curr_br->leaf_number[curr_idx];
 				}
 				__syncthreads();
 
@@ -683,4 +768,36 @@ __global__ void cuda_search_rect2_impl2(void **br_ptr, indexer *atomic_iter, /*o
 			}
 		}
 	}
+}
+
+__device__ bool cuda_check_intersection(coord p1x, coord p1y, coord p2x, coord p2y, coord p3x, coord p3y, coord p4x, coord p4y)
+{
+	coord x4x3 = p4x - p3x;
+	coord y4y3 = p4y - p3y;
+	coord x1x3 = p1x - p3x;
+	coord y1y3 = p1y - p3y;
+
+	coord x2x3 = p2x - p3x;
+	coord y2y3 = p2y - p3y;
+
+	coord x2x1 = p2x - p1x;
+	coord y2y1 = p2y - p1y;
+	coord x3x1 = p3x - p1x;
+	coord y3y1 = p3y - p1y;
+
+	coord x4x1 = p4x - p1x;
+	coord y4y1 = p4y - p1y;
+
+	coord v1 = x4x3 * y1y3 - x1x3 * y4y3;
+	coord v2 = x4x3 * y2y3 - x2x3 * y4y3;
+	coord v3 = x2x1 * y3y1 - x3x1 * y2y1;
+	coord v4 = x2x1 * y4y1 - x4x1 * y2y1;
+
+	coord v1t = v1 * v2;
+	coord v2t = v3 * v4;
+
+	if ((signbit(v1t) || v1t == 0.0) && (signbit(v2t) || v2t == 0.0)) {
+		return true;
+	}
+	return false;
 }

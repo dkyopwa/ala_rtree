@@ -153,12 +153,42 @@ void add_nodes(/*in*/struct node* nd, /*in/out*/size_t* mem_size, /*in/out*/size
 
 bool check_intersection(coord p1x, coord p1y, coord p2x, coord p2y, coord p3x, coord p3y, coord p4x, coord p4y)
 {
-	coord t0x = p2x - p1x;
+/*	coord t0x = p2x - p1x;
 	coord t0y = p2y - p1y;
 	coord t1 = (p3x - p1x) * t0x + (p3y - p1y) * t0y;
 	coord t2 = (p4x - p1x) * t0x + (p4y - p1y) * t0y;
 	if ((t1 >= 0 && t2 <= 0) || (t1 <= 0 && t2 >= 0))
 		return true;
+	return false;
+	*/
+
+	coord x4x3 = p4x - p3x;
+	coord y4y3 = p4y - p3y;
+	coord x1x3 = p1x - p3x;
+	coord y1y3 = p1y - p3y;
+
+	coord x2x3 = p2x - p3x;
+	coord y2y3 = p2y - p3y;
+
+	coord x2x1 = p2x - p1x;
+	coord y2y1 = p2y - p1y;
+	coord x3x1 = p3x - p1x;
+	coord y3y1 = p3y - p1y;
+
+	coord x4x1 = p4x - p1x;
+	coord y4y1 = p4y - p1y;
+
+	coord v1 = x4x3 * y1y3 - x1x3 * y4y3;
+	coord v2 = x4x3 * y2y3 - x2x3 * y4y3;
+	coord v3 = x2x1 * y3y1 - x3x1 * y2y1;
+	coord v4 = x2x1 * y4y1 - x4x1 * y2y1;
+
+	coord v1t = v1 * v2;
+	coord v2t = v3 * v4;
+
+	if ((signbit(v1t) || v1t == 0.0) && (signbit(v2t) || v2t == 0.0)) {
+		return true;
+	}
 	return false;
 }
 
