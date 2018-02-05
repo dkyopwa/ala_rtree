@@ -186,7 +186,8 @@ bool check_intersection(coord p1x, coord p1y, coord p2x, coord p2y, coord p3x, c
 	coord v1t = v1 * v2;
 	coord v2t = v3 * v4;
 
-	if ((signbit(v1t) || v1t == 0.0) && (signbit(v2t) || v2t == 0.0)) {
+	//if ((signbit(v1t) || v1t == 0.0) && (signbit(v2t) || v2t == 0.0)) {
+	if (v1t <= 0.0 && v2t <= 0.0) {
 		return true;
 	}
 	return false;
@@ -276,6 +277,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 										// check shape fully in boundary or intersection with boundary
 										bool fl1 = false;
 										indexer end = i1 + 1 >= br->count_shapes ? br->count_leafs : br->offset[i1 + 1];
+
 										for (indexer k = br->offset[i1]; k < end; ++k) {
 											if (br->leaf_x[k] >= x_min && br->leaf_x[k] <= x_max && br->leaf_y[k] >= y_min && br->leaf_y[k] <= y_max) {
 												fl1 = true;
@@ -527,6 +529,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 #else
 		cc->dist = (coord)sqrt((cc->br->leaf_x[k] - pc.x) * (cc->br->leaf_x[k] - pc.x) + (cc->br->leaf_y[k] - pc.y) + (cc->br->leaf_y[k] - pc.y));
 		cc->curr_idx = cc->br->leaf_number[cc->br->offset[cc->idx]];
+		//printf("CPU idx = %u, dist = %e\n", cc->curr_idx, cc->dist);
 		return false; // because point
 #endif
 	}
@@ -551,7 +554,7 @@ indexer* search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, co
 		}
 #endif
 	}
-
+	//printf("CPU idx = %u, dist = %e\n", cc->curr_idx, cc->dist);
 	return false;
 }
 

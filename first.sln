@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "first", "first\first.vcxproj", "{392DFEB6-F202-4864-B70F-366BC216B091}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ala_rtree", "first\first.vcxproj", "{392DFEB6-F202-4864-B70F-366BC216B091}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +15,7 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{392DFEB6-F202-4864-B70F-366BC216B091}.Debug|x64.ActiveCfg = Debug|x64
 		{392DFEB6-F202-4864-B70F-366BC216B091}.Debug|x64.Build.0 = Debug|x64
+		{392DFEB6-F202-4864-B70F-366BC216B091}.Debug|x64.Deploy.0 = Debug|x64
 		{392DFEB6-F202-4864-B70F-366BC216B091}.Debug|x86.ActiveCfg = Debug|Win32
 		{392DFEB6-F202-4864-B70F-366BC216B091}.Debug|x86.Build.0 = Debug|Win32
 		{392DFEB6-F202-4864-B70F-366BC216B091}.Release|x64.ActiveCfg = Release|x64

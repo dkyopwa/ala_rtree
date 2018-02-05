@@ -42,12 +42,16 @@ void try_find2(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find3(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 void try_find4(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 #ifdef USE_CUDA
-extern "C"
 #if defined(CALC_CIRCLE) || defined(CALC_POINT)
 /* searchin items in selected rectangle on cuda device */
+extern "C"
 indexer* cuda_search_rect2(struct node *nd, coord x_min, coord y_min, coord x_max, coord y_max, bool intersection, /*out*/indexer *count_items);
+/* searching the nearest item to point in selected radius */
+extern "C"
+indexer* cuda_search_nearest_item2(/*in*//*struct node *nd, *//*in*/coord x, /*in*/coord y, /*in*/coord radius, bool intersection, /*out*/coord *dist);
 #endif // CALC_POINT
 void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
+void try_find6_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs);
 #endif // USE_CUDA
 
 // ---------------------------------------- TEST -------------------------------------------
@@ -80,7 +84,8 @@ int main()
 		////try_find3(nd, lll, count_of_leafs);
 		//try_find4(nd, lll, count_of_leafs);
 #ifdef USE_CUDA
-		try_find5_cuda(nd, lll, count_of_leafs);
+		//try_find5_cuda(nd, lll, count_of_leafs);
+		try_find6_cuda(nd, lll, count_of_leafs);
 #endif //USE_CUDA
 		lprintf("end");
 #ifdef CALC_POINT
@@ -710,7 +715,7 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	clock_t t1 = clock();
 	indexer *idxs1 = NULL;
 	for (int i = 0; i < count_iter; ++i) {
-		idxs1 = search_rect2(nd, -100, 1, 1, 1.5, true, &count_items1); //-180, -87, 180, -86.6
+		idxs1 = search_rect2(nd, -50, 1, 1, 2.0, false, &count_items1); //-180, -87, 180, -86.6
 		if (i != count_iter - 1)
 			_aligned_free(idxs1);
 	}
@@ -720,7 +725,7 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	t1 = clock();
 	indexer *idxs2 = NULL;
 	for (int i = 0; i < count_iter; ++i) {
-		idxs2 = cuda_search_rect2(nd, -100, 1, 1, 1.5, true, &count_items2);
+		idxs2 = cuda_search_rect2(nd, -50, 1, 1, 2.0, false, &count_items2);
 		if (i != count_iter - 1)
 			_aligned_free(idxs2);
 	}
@@ -730,16 +735,16 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	if (count_items1 != count_items2 && count_items2 != 99999) {
 		printf("Error in count items: %u vs %u\n", count_items1, count_items2);
 
-		/*for (indexer i = 0; i < count_items1; ++i) {
+		/*for (indexer i = 0; i < count_items2; ++i) {
 			bool fl = false;
-			for (indexer j = 0; j < count_items2; ++j) {
-				if (idxs1[i] == idxs2[j]) {
+			for (indexer j = 0; j < count_items1; ++j) {
+				if (idxs1[j] == idxs2[i]) {
 					fl = true;
 					break;
 				}
 			}
 			if (!fl) {
-				printf("%u\n", idxs1[i]);
+				printf("%u\n", idxs2[i]);
 			}
 		}*/
 
@@ -811,4 +816,68 @@ void try_find5_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
 	_aligned_free(idxs2);
 #endif
 	_aligned_free(idxs1);
+}
+
+void try_find6_cuda(struct node *nd, struct leaf* lll, unsigned count_of_leafs)
+{
+	int count_iter = 1000;
+	coord radius = 2.0;
+
+	indexer *tidxs1 = (indexer*)malloc(sizeof(indexer) * count_iter);
+	coord *tdist1 = (coord*)malloc(sizeof(coord) * count_iter);
+	indexer *tidxs2 = (indexer*)malloc(sizeof(indexer) * count_iter);
+	coord *tdist2 = (coord*)malloc(sizeof(coord) * count_iter);
+	coord *x = (coord*)malloc(sizeof(coord) * count_iter);
+	coord *y = (coord*)malloc(sizeof(coord) * count_iter);
+
+	indexer *idxs1 = NULL, *idxs2 = NULL;
+	coord dist1 = 0.0, dist2 = 0.0;
+	indexer c1 = 0, c2 = 0;
+
+	for (int i = 0; i < count_iter; ++i) {
+		x[i] = (rand() % 3600) / 10.0 - 180.0; //91.9;
+		y[i] = (rand() % 1800) / 10.0 - 90.0; //-55.4
+	}
+
+	clock_t t1 = clock();
+	for (int i = 0; i < count_iter; ++i) {
+		idxs1 = search_nearest_item2(nd, x[i], y[i], radius, true, &c1, &dist1);
+		tidxs1[i] = idxs1[0];
+		tdist1[i] = dist1;
+		_aligned_free(idxs1);
+		//printf("CPU result = %u, dist = %f\n", tidxs1[i], tdist1[i]);
+	}
+	clock_t t2 = clock();
+	printf("Time to search the nearest item on CPU = %d, count = %i\n", t2 - t1, count_iter);
+
+#ifdef USE_CUDA
+	clock_t t3 = clock();
+	for (int i = 0; i < count_iter; ++i) {
+		idxs2 = cuda_search_nearest_item2(/*nd, */x[i], y[i], radius, true, &dist2);
+		tidxs2[i] = idxs2[0];
+		tdist2[i] = dist2;
+		_aligned_free(idxs2);
+		//printf("GPU result = %u, dist = %f\n", tidxs2[i], tdist2[i]);
+	}
+	clock_t t4 = clock();
+	printf("Time to search the nearest item on GPU = %d, count = %i\n", t4 - t3, count_iter);
+
+	for (int i = 0; i < count_iter; ++i) {
+		if (tidxs1[i] != tidxs2[i] && tdist1[i] != tdist2[i]) {
+			printf("========== Error %i: idx = %u vs %u, dist = %e vs %e, coord = %f, %f\n", i, tidxs1[i], tidxs2[i], tdist1[i], tdist2[i], x[i], y[i]);
+		}
+	}
+#endif
+
+	/*if (idxs1)
+		_aligned_free(idxs1);
+	if (idxs2)
+		_aligned_free(idxs2);
+		*/
+	free(x);
+	free(y);
+	free(tidxs1);
+	free(tidxs2);
+	free(tdist1);
+	free(tdist2);
 }
